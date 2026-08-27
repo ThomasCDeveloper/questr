@@ -1,0 +1,1458 @@
+/* ==========================================================================
+   Grimoire de Tâches — thème inspiré de tougli.barbofus.com/guides
+   Palette : fond sombre encré, accents or/parchemin, typographie fantasy
+   ========================================================================== */
+
+:root {
+  /* Fonds */
+  --bg-deepest: #0e1015;
+  --bg-base: #131217;
+  --bg-raised: #16151a;
+  --bg-card: #1c1b21;
+  --bg-card-hover: #221f27;
+
+  /* Parchemin / or */
+  --parchment-100: #f9f3e4;
+  --parchment-200: #f4e7ca;
+  --parchment-300: #eedbaf;
+  --parchment-500: #d3b788;
+  --parchment-700: #b89260;
+  --bronze-500: #ad8955;
+  --bronze-700: #81643e;
+  --bronze-900: #2a2015;
+
+  /* Neutres / texte atténué */
+  --sand-400: #8d8477;
+  --sand-600: #6f6a62;
+  --line: rgba(238, 219, 175, 0.14);
+  --line-strong: rgba(238, 219, 175, 0.3);
+
+  /* Statuts / priorités */
+  --danger: #e14a4a;
+  --danger-dim: rgba(225, 74, 74, 0.16);
+  --amber: #d3924a;
+  --amber-dim: rgba(211, 146, 74, 0.16);
+  --sage: #7a9a6b;
+  --sage-dim: rgba(122, 154, 107, 0.16);
+
+  --font-display: "Cinzel Decorative", ui-serif, Georgia, serif;
+  --font-body: "Sora", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 10px;
+  --radius-btn: 8px;
+  --radius-badge: 6px;
+  --radius-pill: 999px; /* réservé aux icônes rondes (bascule thème, case à cocher, fermeture) */
+
+  /* ---- Rôles sémantiques (thème sombre = valeurs par défaut, inchangées) ---- */
+  --text-heading: var(--parchment-100);
+  --text-body: var(--parchment-200);
+  --text-faint: var(--sand-600);
+  --text-muted: var(--sand-400);
+  --tint-soft: rgba(238, 219, 175, 0.08);
+
+  /* ---- Couleurs d'accent utilisées comme TEXTE (labels, badges, alertes).
+     En sombre elles pointent simplement vers les couleurs vives existantes ;
+     en clair elles sont assombries pour rester lisibles sur le parchemin
+     (voir bloc [data-theme="light"] ci-dessous). ---- */
+  --accent-text: var(--bronze-500);
+  --sage-text: var(--sage);
+  --amber-text: var(--amber);
+  --danger-text: var(--danger);
+
+  /* ---- « Encre » — chrome toujours sombre (fond de page, nav, contrôles
+     posés sur --bg-deepest) : jamais redéfini en thème clair. ---- */
+  --ink-bg-raised: #16151a;
+  --ink-text: var(--parchment-100);
+  --ink-text-muted: var(--sand-400);
+  --ink-text-faint: var(--sand-600);
+  --ink-border: rgba(238, 219, 175, 0.3);
+  --ink-border-soft: rgba(238, 219, 175, 0.14);
+
+  color-scheme: dark;
+}
+
+/* ---------- Thème clair — parchemin façon tougli.barbofus.com ----------
+   Le fond de page et la nav restent sombres (tokens --bg-base / --bg-deepest
+   / --ink-* volontairement non redéfinis ici) ; seules les surfaces des
+   sections (panels, cartes, cases) passent en parchemin clair. */
+
+[data-theme="light"] {
+  /* Valeurs sourcées directement depuis tougli.barbofus.com/guides :
+     fond de carte = dégradé radial rgb(244,231,202) → rgb(238,219,175),
+     bordure de carte = rgb(173,137,85) (= notre --bronze-500),
+     texte de titre = rgb(49,42,31). */
+  --bg-raised: #eedbaf;     /* rgb(238, 219, 175) — parchemin, bord/creux (plus riche) */
+  --bg-card: #f4e7ca;       /* rgb(244, 231, 202) — parchemin principal (le vrai fond de carte tougli) */
+  --bg-card-hover: #f9f3e4; /* rgb(249, 243, 228) — parchemin le plus clair, pour le survol */
+
+  --text-heading: #312a1f; /* rgb(49, 42, 31) — couleur exacte des H2 tougli */
+  --text-body: #3a2f1f;
+  --text-faint: #7c7062;
+  --text-muted: #6f6a62;
+
+  /* Versions assombries des couleurs d'accent pour rester lisibles en texte
+     sur le parchemin clair (contraste ≥ 4.5:1 vérifié sur --bg-raised). */
+  --accent-text: #7a5a30;
+  --sage-text: #45603c;
+  --amber-text: #7a4d19;
+  --danger-text: #a13030;
+
+  --line: rgba(173, 137, 85, 0.25);
+  --line-strong: rgba(173, 137, 85, 0.45);
+  --tint-soft: rgba(173, 137, 85, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(211, 183, 136, 0.08), transparent 60%),
+    var(--bg-base);
+  color: var(--ink-text); /* couleur par défaut : le fond de page reste sombre dans les deux thèmes */
+  font-family: var(--font-body);
+  line-height: 1.5;
+  position: relative;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse 1400px 900px at 50% 0%, transparent 55%, rgba(0,0,0,0.55) 100%);
+}
+
+/* ---------- Topbar ---------- */
+
+.topbar {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, var(--bg-deepest), var(--ink-bg-raised));
+  border-bottom: 1px solid var(--ink-border-soft);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.6), inset 0 -1px 12px rgba(0,0,0,0.3);
+}
+
+.topbar-inner {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand-emblem {
+  color: var(--bronze-500);
+  font-size: 18px;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-text);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-toggle {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--ink-border);
+  background: var(--bg-deepest);
+  color: var(--ink-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s, color 0.2s;
+}
+
+.theme-toggle:hover {
+  border-color: var(--bronze-500);
+  color: var(--ink-text);
+}
+
+.theme-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.theme-toggle .icon-moon {
+  display: none;
+}
+
+[data-theme="light"] .theme-toggle .icon-sun {
+  display: none;
+}
+
+[data-theme="light"] .theme-toggle .icon-moon {
+  display: block;
+}
+
+.theme-toggle:active {
+  transform: scale(0.94);
+}
+
+/* ---------- Nav (vues) ---------- */
+
+.view-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  order: 3;
+  flex-basis: 100%;
+  justify-content: center;
+  background: var(--bg-deepest);
+  border: 1px solid var(--ink-border-soft);
+  border-radius: var(--radius-btn);
+  padding: 4px;
+}
+
+.view-link {
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-text-muted);
+  padding: 8px 18px;
+  border-radius: calc(var(--radius-btn) - 2px);
+  transition: color 0.2s, background 0.2s;
+}
+
+.view-link:hover {
+  color: var(--ink-text);
+}
+
+.view-link.active {
+  background: var(--parchment-500);
+  border-color: var(--bronze-700);
+  color: var(--bronze-900);
+  box-shadow: 0 2px 3px rgba(160, 114, 42, 0.5);
+}
+
+@media (min-width: 640px) {
+  .view-nav {
+    order: 0;
+    flex-basis: auto;
+  }
+}
+
+/* ---------- Layout ---------- */
+
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.02) inset, 0 8px 24px rgba(0,0,0,0.35);
+  padding: 24px;
+}
+
+/* En clair, réplique le vrai fond de carte tougli : dégradé radial
+   parchemin + assombrissement doux vers les bords + bordure bronze 2px. */
+[data-theme="light"] .panel {
+  background:
+    radial-gradient(140% 140% at 50% 0%, rgba(42, 32, 21, 0.1), transparent 65%),
+    radial-gradient(circle at 50% 30%, var(--bg-card) 0%, var(--bg-raised) 100%);
+  border-width: 2px;
+  border-color: var(--bronze-500);
+}
+
+/* ---------- Intro ---------- */
+
+.intro {
+  text-align: left;
+  background:
+    linear-gradient(180deg, rgba(211,183,136,0.06), transparent 70%),
+    var(--bg-card);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.intro h1 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-heading);
+}
+
+.lede {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14.5px;
+  max-width: 52ch;
+}
+
+/* ---------- Form ---------- */
+
+.form-panel {
+  padding: 18px;
+}
+
+#task-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#task-input {
+  flex: 1 1 260px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+#task-input::placeholder {
+  color: var(--text-faint);
+}
+
+#task-input:focus {
+  border-color: var(--bronze-500);
+  box-shadow: 0 0 0 3px rgba(173, 137, 85, 0.18);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--bronze-700);
+  border-radius: var(--radius-btn);
+  padding: 0 22px;
+  height: 44px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--bronze-900);
+  cursor: pointer;
+  background: var(--parchment-500);
+  box-shadow: 0 2px 3px rgba(160, 114, 42, 0.5);
+  transition: transform 0.12s ease, filter 0.2s ease, box-shadow 0.12s ease;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(160, 114, 42, 0.5);
+}
+
+/* ---------- Toolbar / filters ---------- */
+
+.list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.sort-group-pill {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-deepest);
+  border: 1px solid var(--ink-border-soft);
+  border-radius: var(--radius-btn);
+  padding: 4px;
+}
+
+.sort-group-pill select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--parchment-500);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='%232a2015' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px;
+  border: 1px solid var(--bronze-700);
+  border-radius: calc(var(--radius-btn) - 2px);
+  color: var(--bronze-900);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 7px 26px 7px 14px;
+  outline: none;
+  cursor: pointer;
+  transition: filter 0.2s, border-color 0.2s;
+}
+
+.sort-group-pill select:hover {
+  filter: brightness(1.05);
+}
+
+.sort-group-pill select:focus {
+  border-color: var(--bronze-900);
+}
+
+.filters {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-deepest);
+  border: 1px solid var(--ink-border-soft);
+  border-radius: var(--radius-btn);
+  padding: 4px;
+}
+
+.filter-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-text-muted);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 7px 14px;
+  border-radius: calc(var(--radius-btn) - 2px);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.filter-btn:hover {
+  color: var(--ink-text);
+}
+
+.filter-btn.active {
+  background: var(--parchment-500);
+  border: 1px solid var(--bronze-700);
+  color: var(--bronze-900);
+  font-weight: 600;
+}
+
+.btn-ghost {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.btn-ghost:hover {
+  color: var(--danger-text);
+  border-color: var(--danger-text);
+  background: var(--danger-dim);
+}
+
+/* ---------- Task list ---------- */
+
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-group-separator {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  padding: 12px 2px 2px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+}
+
+.task-group-separator:first-child {
+  padding-top: 0;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.task-item:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--line-strong);
+}
+
+.task-check {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 2px solid var(--line-strong);
+  background: transparent;
+  color: var(--bronze-900);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.task-check:hover {
+  border-color: var(--bronze-500);
+  background: var(--tint-soft);
+}
+
+.task-item.done .task-check {
+  background: linear-gradient(180deg, var(--parchment-300), var(--bronze-500));
+  border-color: var(--bronze-500);
+}
+
+.task-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.task-text {
+  font-size: 14.5px;
+  color: var(--text-body);
+  word-break: break-word;
+  outline: none;
+}
+
+.task-item.done .task-text {
+  color: var(--text-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-faint);
+}
+
+.task-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: var(--radius-badge);
+  border: 1px solid transparent;
+}
+
+.badge.priority-low {
+  color: var(--sage-text);
+  background: var(--sage-dim);
+  border-color: rgba(122, 154, 107, 0.35);
+}
+
+.badge.priority-medium {
+  color: var(--amber-text);
+  background: var(--amber-dim);
+  border-color: rgba(211, 146, 74, 0.35);
+}
+
+.badge.priority-high {
+  color: var(--danger-text);
+  background: var(--danger-dim);
+  border-color: rgba(225, 74, 74, 0.35);
+}
+
+
+.badge.subtask-progress {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--text-muted);
+  background: var(--tint-soft);
+  border-color: var(--line);
+  padding: 3px 8px;
+}
+
+.badge.subtask-progress.all-done {
+  color: var(--sage-text);
+}
+
+.badge.no-desc {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--amber-text);
+  background: var(--amber-dim);
+  border-color: rgba(211, 146, 74, 0.35);
+  padding: 3px 8px;
+}
+
+.task-due-inline {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.task-due-inline.today {
+  color: var(--accent-text);
+  font-weight: 700;
+  background: var(--tint-soft);
+  padding: 1px 6px;
+  border-radius: var(--radius-badge);
+}
+
+.task-due-inline.overdue {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+.task-item.done .task-due-inline {
+  color: inherit;
+  font-weight: inherit;
+  background: none;
+  padding: 0;
+}
+
+/* ---------- Empty state ---------- */
+
+.empty-state {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state.visible {
+  display: flex;
+}
+
+.empty-emblem {
+  font-size: 26px;
+  color: var(--accent-text);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 13.5px;
+  max-width: 34ch;
+}
+
+/* ---------- Kanban ---------- */
+
+.kanban-panel {
+  padding: 20px;
+}
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.kanban-column {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kanban-column.drag-over {
+  border-color: var(--bronze-500);
+  box-shadow: 0 0 0 3px rgba(173, 137, 85, 0.15);
+}
+
+.kanban-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.kanban-count {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--tint-soft);
+  border-radius: var(--radius-badge);
+  padding: 1px 8px;
+}
+
+.kanban-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.kanban-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.2s, background 0.2s, opacity 0.2s;
+}
+
+.kanban-card:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-card-hover);
+}
+
+.kanban-card.dragging {
+  opacity: 0.4;
+}
+
+.kanban-card .task-text {
+  font-size: 13.5px;
+}
+
+.kanban-column[data-status="done"] .kanban-card .task-text {
+  color: var(--text-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-faint);
+}
+
+.kanban-due-line {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.kanban-due-line.today {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.kanban-due-line.overdue {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+.kanban-column[data-status="done"] .kanban-card .kanban-due-line {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.kanban-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kanban-empty {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+  padding: 10px 4px;
+}
+
+.kanban-toggle-btn {
+  border: 1px dashed var(--line-strong);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7px;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.kanban-toggle-btn:hover {
+  color: var(--text-body);
+  border-color: var(--bronze-500);
+  background: var(--tint-soft);
+}
+
+/* ---------- Calendrier ---------- */
+
+.calendar-panel {
+  padding: 20px;
+}
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.calendar-month {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-heading);
+}
+
+.cal-today-btn {
+  margin-left: 4px;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.calendar-weekdays span {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.calendar-day {
+  position: relative;
+  min-height: 64px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.calendar-day:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-card-hover);
+}
+
+.calendar-day.other-month {
+  opacity: 0.35;
+}
+
+.calendar-day.today {
+  border-color: var(--bronze-500);
+}
+
+.calendar-day.selected {
+  background: rgba(173, 137, 85, 0.16);
+  border-color: var(--bronze-500);
+  box-shadow: 0 0 0 2px rgba(173, 137, 85, 0.18);
+}
+
+.calendar-day-num {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.calendar-day.today .calendar-day-num {
+  color: var(--accent-text);
+}
+
+.calendar-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.calendar-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.calendar-dot.priority-low { background: var(--sage); }
+.calendar-dot.priority-medium { background: var(--amber); }
+.calendar-dot.priority-high { background: var(--danger); }
+
+.calendar-day-more {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.agenda-panel {
+  padding: 20px 24px;
+}
+
+.agenda-empty {
+  display: none;
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.agenda-empty.visible {
+  display: block;
+}
+
+/* ---------- Modale d'édition de tâche ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.modal-backdrop[hidden] {
+  display: none;
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.modal-title-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 4px;
+  color: var(--text-heading);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  padding: 4px 6px;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.modal-title-input:hover {
+  background: var(--tint-soft);
+}
+
+.modal-title-input:focus {
+  border-bottom-color: var(--bronze-500);
+  background: var(--tint-soft);
+}
+
+.modal-static-title {
+  flex: 1;
+  margin: 0;
+  color: var(--text-heading);
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 700;
+  padding: 4px 6px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-import-error {
+  margin: 8px 0 0;
+  color: var(--danger-text);
+  font-size: 12.5px;
+}
+
+.modal-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.modal-close:hover {
+  color: var(--danger-text);
+  border-color: rgba(225, 74, 74, 0.35);
+  background: var(--danger-dim);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-field-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.modal-field-row .modal-field {
+  flex: 1 1 160px;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-field label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.modal-field-hint {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-faint);
+}
+
+.modal-field input[type="date"],
+.modal-field select {
+  align-self: flex-start;
+  width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 10px 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.modal-field input[type="date"]:focus,
+.modal-field select:focus {
+  border-color: var(--bronze-500);
+}
+
+.modal-textarea {
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.modal-textarea::placeholder {
+  color: var(--text-faint);
+}
+
+.modal-textarea:focus {
+  border-color: var(--bronze-500);
+}
+
+/* ---------- Sous-tâches ---------- */
+
+.subtask-progress-bar {
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--tint-soft);
+  overflow: hidden;
+  margin-top: -2px;
+}
+
+.subtask-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--bronze-500), var(--parchment-500));
+  transition: width 0.2s ease;
+}
+
+.subtask-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.subtask-item:hover {
+  background: var(--tint-soft);
+}
+
+.subtask-item:hover .subtask-delete {
+  opacity: 1;
+}
+
+.subtask-check {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-raised);
+  color: var(--bronze-900);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.subtask-item.done .subtask-check {
+  background: linear-gradient(180deg, var(--parchment-300), var(--bronze-500));
+  border-color: var(--bronze-500);
+}
+
+.subtask-text {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 4px 6px;
+  outline: none;
+  transition: background 0.15s;
+}
+
+.subtask-text:hover,
+.subtask-text:focus {
+  background: var(--bg-raised);
+}
+
+.subtask-item.done .subtask-text {
+  color: var(--text-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-faint);
+}
+
+.subtask-delete {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s, opacity 0.15s;
+}
+
+.subtask-delete:hover {
+  color: var(--danger-text);
+  background: var(--danger-dim);
+}
+
+.subtask-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.subtask-form input[type="text"] {
+  flex: 1;
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.subtask-form input[type="text"]::placeholder {
+  color: var(--text-faint);
+}
+
+.subtask-form input[type="text"]:focus {
+  border-color: var(--bronze-500);
+}
+
+.subtask-add-btn {
+  flex: none;
+  width: 34px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(180deg, var(--parchment-300), var(--bronze-500));
+  color: var(--bronze-900);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.2s;
+}
+
+.subtask-add-btn:hover {
+  filter: brightness(1.05);
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.modal-footer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.modal-delete-btn {
+  border: 1px solid rgba(225, 74, 74, 0.35);
+  background: transparent;
+  color: var(--danger-text);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  padding: 8px 14px;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.modal-delete-btn:hover {
+  background: var(--danger-dim);
+  border-color: var(--danger);
+}
+
+/* ---------- Confirmation de suppression ---------- */
+
+.confirm-backdrop {
+  z-index: 200; /* au-dessus de la modale d'édition (100) */
+}
+
+.confirm-box {
+  max-width: 380px;
+  gap: 16px;
+}
+
+.confirm-text {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---------- Footer ---------- */
+
+.page-footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 0 24px 40px;
+  color: var(--ink-text-faint);
+  font-size: 12px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 700px) {
+  .kanban-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-inner {
+    padding: 14px 16px;
+  }
+  .page {
+    padding: 22px 14px 40px;
+  }
+  .panel {
+    padding: 18px;
+  }
+  #task-form {
+    flex-direction: column;
+  }
+  #task-form .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+  .list-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .view-link {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  .calendar-day {
+    min-height: 46px;
+    padding: 4px;
+  }
+  .calendar-day-num {
+    font-size: 11px;
+  }
+  .calendar-month {
+    font-size: 13px;
+  }
+  .modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modal {
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
+  .modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .modal-footer-actions {
+    justify-content: flex-end;
+  }
+}

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grimoire de Tâches</title>
+<script>
+  // Applique le thème enregistré avant le premier rendu (évite le flash).
+  try {
+    var savedTheme = localStorage.getItem("grimoire-taches.theme");
+    document.documentElement.dataset.theme = savedTheme === "light" ? "light" : "dark";
+  } catch (e) {
+    document.documentElement.dataset.theme = "dark";
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="vignette"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-emblem">✦</span>
+      <span class="brand-name">Livre&nbsp;de&nbsp;Quêtes</span>
+    </div>
+
+    <nav class="view-nav" id="view-nav" aria-label="Vues">
+      <button type="button" class="view-link active" data-view="list">Liste</button>
+      <button type="button" class="view-link" data-view="kanban">Kanban</button>
+      <button type="button" class="view-link" data-view="calendar">Calendrier</button>
+    </nav>
+
+    <div class="topbar-actions">
+      <button type="button" id="settings-toggle" class="theme-toggle" aria-label="Paramètres">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82A1.65 1.65 0 0 0 3 13.09H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Basculer le thème clair/sombre">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.5"/>
+          <line x1="12" y1="1.5" x2="12" y2="4"/>
+          <line x1="12" y1="20" x2="12" y2="22.5"/>
+          <line x1="1.5" y1="12" x2="4" y2="12"/>
+          <line x1="20" y1="12" x2="22.5" y2="12"/>
+          <line x1="4.6" y1="4.6" x2="6.3" y2="6.3"/>
+          <line x1="17.7" y1="17.7" x2="19.4" y2="19.4"/>
+          <line x1="4.6" y1="19.4" x2="6.3" y2="17.7"/>
+          <line x1="17.7" y1="6.3" x2="19.4" y2="4.6"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+
+  <section class="panel form-panel">
+    <form id="task-form" autocomplete="off">
+      <input
+        type="text"
+        id="task-input"
+        placeholder="Décrire une nouvelle quête…"
+        maxlength="140"
+        required
+      >
+      <button type="submit" class="btn-primary">
+        <span>+ Ajouter</span>
+      </button>
+    </form>
+  </section>
+
+  <!-- ===== Vue Liste ===== -->
+  <section class="view" id="view-list">
+    <section class="panel list-panel">
+      <div class="list-toolbar">
+        <div class="filters" id="filters" role="tablist">
+          <button class="filter-btn active" data-filter="active">En cours</button>
+          <button class="filter-btn" data-filter="done">Terminées</button>
+        </div>
+
+        <div class="sort-group-pill">
+          <select id="group-select" aria-label="Classer par">
+            <option value="none">Classer par</option>
+            <option value="category">Catégorie</option>
+            <option value="due">Échéance</option>
+            <option value="created">Date de création</option>
+          </select>
+          <select id="sort-select" aria-label="Trier par">
+            <option value="recent">Trier par</option>
+            <option value="due">Échéance</option>
+            <option value="priority">Priorité</option>
+            <option value="alpha">Alphabétique</option>
+          </select>
+        </div>
+      </div>
+
+      <ul id="task-list" class="task-list"></ul>
+
+      <div id="empty-state" class="empty-state">
+        <p>Aucune quête ici. Le repos vous attend, ou ajoutez-en une nouvelle.</p>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===== Vue Kanban ===== -->
+  <section class="view" id="view-kanban" hidden>
+    <section class="panel kanban-panel">
+      <div class="kanban-board">
+        <div class="kanban-column" data-status="todo">
+          <h3 class="kanban-title">
+            À commencer <span class="kanban-count" id="count-todo">0</span>
+          </h3>
+          <div class="kanban-list" id="kanban-todo" data-status="todo"></div>
+        </div>
+        <div class="kanban-column" data-status="doing">
+          <h3 class="kanban-title">
+            En cours <span class="kanban-count" id="count-doing">0</span>
+          </h3>
+          <div class="kanban-list" id="kanban-doing" data-status="doing"></div>
+        </div>
+        <div class="kanban-column" data-status="done">
+          <h3 class="kanban-title">
+            Terminé <span class="kanban-count" id="count-done">0</span>
+          </h3>
+          <div class="kanban-list" id="kanban-done" data-status="done"></div>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===== Vue Calendrier ===== -->
+  <section class="view" id="view-calendar" hidden>
+    <section class="panel calendar-panel">
+      <div class="calendar-toolbar">
+        <button type="button" class="btn-ghost" id="cal-prev" aria-label="Mois précédent">‹</button>
+        <h2 class="calendar-month" id="cal-month-label">—</h2>
+        <button type="button" class="btn-ghost" id="cal-next" aria-label="Mois suivant">›</button>
+        <button type="button" class="btn-ghost cal-today-btn" id="cal-today">Aujourd'hui</button>
+      </div>
+      <div class="calendar-weekdays">
+        <span>Lun</span><span>Mar</span><span>Mer</span><span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
+      </div>
+      <div class="calendar-grid" id="calendar-grid"></div>
+    </section>
+
+    <section class="panel agenda-panel">
+      <h3 class="eyebrow" id="agenda-title">Quêtes du jour</h3>
+      <ul id="agenda-list" class="task-list"></ul>
+      <p class="agenda-empty" id="agenda-empty">Aucune quête à cette date.</p>
+    </section>
+  </section>
+
+</main>
+
+<footer class="page-footer">
+
+</footer>
+
+<!-- ===== Modale d'édition de tâche ===== -->
+<div class="modal-backdrop" id="task-modal-backdrop" hidden>
+  <div class="modal panel" id="task-modal" role="dialog" aria-modal="true" aria-label="Modifier la tâche">
+    <div class="modal-header">
+      <input
+        type="text"
+        id="modal-title-input"
+        class="modal-title-input"
+        maxlength="140"
+        placeholder="Titre de la quête"
+        aria-label="Titre de la tâche"
+      >
+      <button type="button" id="modal-close" class="modal-close" aria-label="Fermer">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-field-row">
+        <div class="modal-field">
+          <label for="modal-priority-input">Catégorie</label>
+          <select id="modal-priority-input">
+            <option value="low">Fond</option>
+            <option value="medium">Todo</option>
+            <option value="high">Urgent</option>
+          </select>
+        </div>
+
+        <div class="modal-field">
+          <label for="modal-due-input">Échéance</label>
+          <input type="date" id="modal-due-input">
+        </div>
+      </div>
+
+      <div class="modal-field">
+        <label for="modal-desc-input">Description</label>
+        <textarea
+          id="modal-desc-input"
+          class="modal-textarea"
+          rows="6"
+          placeholder="Ajoutez plus de détails…"
+        ></textarea>
+      </div>
+
+      <div class="modal-field">
+        <label>
+          Sous-tâches <span class="modal-field-hint" id="modal-subtasks-progress"></span>
+        </label>
+        <div class="subtask-progress-bar" id="modal-subtasks-bar" hidden>
+          <div class="subtask-progress-fill" id="modal-subtasks-fill"></div>
+        </div>
+        <ul class="subtask-list" id="modal-subtask-list"></ul>
+        <form id="modal-subtask-form" class="subtask-form" autocomplete="off">
+          <input
+            type="text"
+            id="modal-subtask-input"
+            placeholder="Ajouter une sous-tâche…"
+            maxlength="80"
+          >
+          <button type="submit" class="subtask-add-btn" aria-label="Ajouter la sous-tâche">+</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" id="modal-delete" class="modal-delete-btn">Supprimer la tâche</button>
+      <div class="modal-footer-actions">
+        <button type="button" id="modal-cancel" class="btn-ghost">Annuler</button>
+        <button type="button" id="modal-save" class="btn-primary"><span>Enregistrer</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Paramètres ===== -->
+<div class="modal-backdrop" id="settings-modal-backdrop" hidden>
+  <div class="modal panel" id="settings-modal" role="dialog" aria-modal="true" aria-label="Paramètres">
+    <div class="modal-header">
+      <h2 class="modal-static-title">Paramètres</h2>
+      <button type="button" id="settings-close" class="modal-close" aria-label="Fermer">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-field">
+        <label>Sauvegarde</label>
+        <p class="modal-field-hint">Exportez vos quêtes dans un fichier, ou restaurez-les depuis une sauvegarde.</p>
+        <div class="settings-actions">
+          <button type="button" id="export-json-btn" class="btn-ghost">Exporter en JSON</button>
+          <button type="button" id="import-json-btn" class="btn-ghost">Importer un JSON</button>
+          <input type="file" id="import-json-input" accept="application/json,.json" hidden>
+        </div>
+        <p class="settings-import-error" id="import-error" hidden></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Confirmation ===== -->
+<div class="modal-backdrop confirm-backdrop" id="confirm-backdrop" hidden>
+  <div class="modal panel confirm-box" role="alertdialog" aria-modal="true" aria-label="Confirmation">
+    <p class="confirm-text" id="confirm-text"></p>
+    <div class="confirm-actions">
+      <button type="button" id="confirm-cancel-btn" class="btn-ghost">Annuler</button>
+      <button type="button" id="confirm-delete-btn" class="modal-delete-btn"></button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
