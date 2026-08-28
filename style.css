@@ -144,12 +144,12 @@ body {
 .topbar-inner {
   max-width: 880px;
   margin: 0 auto;
-  padding: 16px 24px;
+  padding: 16px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px 16px;
+  gap: 10px 12px;
 }
 
 .brand {
@@ -223,8 +223,9 @@ body {
 
 .view-nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 4px 2px;
   order: 3;
   flex-basis: 100%;
   justify-content: center;
@@ -244,7 +245,7 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-text-muted);
-  padding: 8px 18px;
+  padding: 8px 13px;
   border-radius: calc(var(--radius-btn) - 2px);
   transition: color 0.2s, background 0.2s;
 }
@@ -1699,9 +1700,34 @@ body {
     width: 100%;
     justify-content: center;
   }
+  /* En colonne, un flex-basis en pixels (ex. 260px) est interprété comme une
+     HAUTEUR plutôt qu'une largeur : sans ce reset, les champs deviennent
+     démesurément hauts. */
+  #task-input,
+  #project-input {
+    flex: none;
+    width: 100%;
+  }
   .list-toolbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .project-quest-form {
+    flex-direction: column;
+  }
+  .project-quest-form input[type="text"] {
+    flex: none;
+    width: 100%;
+  }
+  .project-quest-form .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+  .modal-field-row {
+    flex-direction: column;
+  }
+  .modal-field-row .modal-field {
+    flex: none;
   }
   .view-link {
     padding: 8px 12px;
