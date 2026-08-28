@@ -19,7 +19,7 @@ const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
 /** @typedef {{id: string, text: string, done: boolean}} Subtask */
 /** @typedef {{id: string, text: string, priority: "low"|"medium"|"high", status: "todo"|"doing"|"done", dueDate: string|null, description: string, subtasks: Subtask[], createdAt: number, projectId: string|null}} Task */
-/** @typedef {{id: string, name: string, createdAt: number}} Project */
+/** @typedef {{id: string, name: string, description: string, sortMode: "manual"|"due"|"priority", taskOrder: string[], createdAt: number}} Project */
 
 /** @type {Task[]} */
 let tasks = loadTasks();
@@ -27,7 +27,7 @@ let tasks = loadTasks();
 let projects = loadProjects();
 let currentFilter = "active"; // vue Liste : "active" | "done"
 let currentGroupBy = "none"; // vue Liste : "none" | "category" | "due" | "created"
-let currentSort = "recent"; // vue Liste : "recent" | "due" | "priority" | "alpha"
+let currentSort = "recent"; // vue Liste : "recent" | "due" | "priority"
 let currentView = loadView(); // "list" | "kanban" | "calendar" | "project"
 
 const KANBAN_PAGE_SIZE = 5;
@@ -86,6 +86,15 @@ const projectInput = document.getElementById("project-input");
 const projectListEl = document.getElementById("project-list");
 const projectEmptyState = document.getElementById("project-empty-state");
 
+// Modale d'édition de projet
+const projectModalBackdrop = document.getElementById("project-modal-backdrop");
+const projectModalTitleInput = document.getElementById("project-modal-title-input");
+const projectModalDescInput = document.getElementById("project-modal-desc-input");
+const projectModalCloseBtn = document.getElementById("project-modal-close");
+const projectModalCancelBtn = document.getElementById("project-modal-cancel");
+const projectModalSaveBtn = document.getElementById("project-modal-save");
+const projectModalDeleteBtn = document.getElementById("project-modal-delete");
+
 // Modale d'édition de tâche
 const modalBackdrop = document.getElementById("task-modal-backdrop");
 const modal = document.getElementById("task-modal");
@@ -122,6 +131,7 @@ const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
 let pendingConfirmAction = null;
 
 let editingTaskId = null;
+let editingProjectId = null;
 
 // ---- Persistence ----
 
@@ -203,6 +213,9 @@ function normalizeProject(raw) {
   return {
     id: raw?.id ?? makeId(),
     name: String(raw?.name ?? "").trim(),
+    description: String(raw?.description ?? ""),
+    sortMode: ["manual", "due", "priority"].includes(raw?.sortMode) ? raw.sortMode : "manual",
+    taskOrder: Array.isArray(raw?.taskOrder) ? raw.taskOrder.filter((id) => typeof id === "string") : [],
     createdAt: raw?.createdAt ?? Date.now(),
   };
 }
@@ -405,7 +418,14 @@ function deleteTask(id) {
 function addProject(name) {
   const trimmed = name.trim();
   if (!trimmed) return null;
-  const project = { id: makeId(), name: trimmed, createdAt: Date.now() };
+  const project = {
+    id: makeId(),
+    name: trimmed,
+    description: "",
+    sortMode: "manual",
+    taskOrder: [],
+    createdAt: Date.now(),
+  };
   projects.push(project);
   saveProjects();
   render();
@@ -479,8 +499,6 @@ function sortTasks(list, sortKey) {
     });
   } else if (sortKey === "priority") {
     sorted.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || b.createdAt - a.createdAt);
-  } else if (sortKey === "alpha") {
-    sorted.sort((a, b) => a.text.localeCompare(b.text, "fr", { sensitivity: "base" }));
   } else {
     sorted.sort((a, b) => b.createdAt - a.createdAt);
   }
@@ -563,7 +581,7 @@ function renderGroupSeparator(label) {
   return li;
 }
 
-function renderTaskItem(task) {
+function renderTaskItem(task, { draggable = false } = {}) {
   const li = document.createElement("li");
   li.className = "task-item" + (task.status === "done" ? " done" : "");
   li.dataset.id = task.id;
@@ -572,6 +590,16 @@ function renderTaskItem(task) {
     if (e.target.closest(".task-check")) return;
     openTaskModal(task);
   });
+
+  if (draggable) {
+    li.draggable = true;
+    li.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", task.id);
+      e.dataTransfer.effectAllowed = "move";
+      li.classList.add("dragging");
+    });
+    li.addEventListener("dragend", () => li.classList.remove("dragging"));
+  }
 
   const checkBtn = document.createElement("button");
   checkBtn.className = "task-check";
@@ -1059,6 +1087,7 @@ function renderProjectView() {
 
 function renderProjectPanel(project) {
   const projectTasks = tasks.filter((t) => t.projectId === project.id);
+  const orderedTasks = getOrderedProjectTasks(project, projectTasks);
 
   const section = document.createElement("section");
   section.className = "panel project-panel";
@@ -1066,6 +1095,11 @@ function renderProjectPanel(project) {
 
   const header = document.createElement("div");
   header.className = "project-header";
+  header.title = "Cliquez pour modifier le projet";
+  header.addEventListener("click", (e) => {
+    if (e.target.closest(".project-delete-btn")) return;
+    openProjectModal(project);
+  });
 
   const name = document.createElement("h3");
   name.className = "project-name";
@@ -1117,25 +1151,167 @@ function renderProjectPanel(project) {
     if (task) openTaskModal(task);
   });
 
-  const taskListEl = document.createElement("ul");
-  taskListEl.className = "task-list project-task-list";
-  for (const task of projectTasks) {
-    taskListEl.appendChild(renderTaskItem(task));
-  }
-
   section.appendChild(header);
   section.appendChild(form);
 
-  if (projectTasks.length > 0) {
-    section.appendChild(taskListEl);
-  } else {
+  if (orderedTasks.length === 0) {
     const hint = document.createElement("p");
     hint.className = "project-empty-hint";
     hint.textContent = "Aucune quête dans ce projet.";
     section.appendChild(hint);
+    return section;
   }
 
+  const toolbar = document.createElement("div");
+  toolbar.className = "project-toolbar";
+
+  const sortLabel = document.createElement("label");
+  sortLabel.textContent = "Trier par";
+  sortLabel.htmlFor = `project-sort-${project.id}`;
+
+  const sortSelect = document.createElement("select");
+  sortSelect.id = `project-sort-${project.id}`;
+  sortSelect.innerHTML = `
+    <option value="manual">Manuel</option>
+    <option value="due">Échéance</option>
+    <option value="priority">Priorité</option>
+  `;
+  sortSelect.value = project.sortMode;
+  sortSelect.addEventListener("change", () => {
+    project.sortMode = sortSelect.value;
+    saveProjects();
+    renderProjectView();
+  });
+
+  toolbar.appendChild(sortLabel);
+  toolbar.appendChild(sortSelect);
+  section.appendChild(toolbar);
+
+  const manual = project.sortMode === "manual";
+  const taskListEl = document.createElement("ul");
+  taskListEl.className = "task-list project-task-list";
+  for (const task of orderedTasks) {
+    taskListEl.appendChild(renderTaskItem(task, { draggable: manual }));
+  }
+  if (manual) setupProjectTaskDragTargets(taskListEl, project);
+
+  section.appendChild(taskListEl);
+
   return section;
+}
+
+// Ordonne les quêtes d'un projet selon son mode de tri.
+function getOrderedProjectTasks(project, projectTasks) {
+  if (project.sortMode === "due") return sortTasks(projectTasks, "due");
+  if (project.sortMode === "priority") return sortTasks(projectTasks, "priority");
+  return getManualOrderedTasks(project, projectTasks);
+}
+
+// Applique l'ordre manuel persistant (`project.taskOrder`) et se répare tout
+// seul : les quêtes retirées du projet disparaissent de l'ordre, celles qui
+// n'y figurent pas encore (nouvelles) sont ajoutées à la suite.
+function getManualOrderedTasks(project, projectTasks) {
+  const byId = new Map(projectTasks.map((t) => [t.id, t]));
+  const ordered = [];
+  for (const id of project.taskOrder) {
+    const task = byId.get(id);
+    if (task) {
+      ordered.push(task);
+      byId.delete(id);
+    }
+  }
+  const rest = [...byId.values()].sort((a, b) => b.createdAt - a.createdAt);
+  const merged = [...ordered, ...rest];
+
+  const mergedIds = merged.map((t) => t.id);
+  if (mergedIds.join(",") !== project.taskOrder.join(",")) {
+    project.taskOrder = mergedIds;
+    saveProjects();
+  }
+
+  return merged;
+}
+
+// Réordonnancement manuel par glisser-déposer, à l'intérieur d'une même liste
+// (contrairement au Kanban qui déplace entre colonnes).
+function getDragAfterElement(container, y) {
+  const items = [...container.querySelectorAll(".task-item:not(.dragging)")];
+  return items.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset, element: child };
+      }
+      return closest;
+    },
+    { offset: Number.NEGATIVE_INFINITY, element: null }
+  ).element;
+}
+
+function setupProjectTaskDragTargets(container, project) {
+  container.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const dragging = container.querySelector(".task-item.dragging");
+    if (!dragging) return;
+    const afterElement = getDragAfterElement(container, e.clientY);
+    if (afterElement == null) {
+      container.appendChild(dragging);
+    } else {
+      container.insertBefore(dragging, afterElement);
+    }
+  });
+
+  container.addEventListener("drop", (e) => {
+    e.preventDefault();
+    project.taskOrder = [...container.querySelectorAll(".task-item")].map((li) => li.dataset.id);
+    saveProjects();
+    render();
+  });
+}
+
+// ---- Modale d'édition de projet ----
+
+function openProjectModal(project) {
+  editingProjectId = project.id;
+  projectModalTitleInput.value = project.name;
+  projectModalDescInput.value = project.description ?? "";
+  projectModalBackdrop.hidden = false;
+  projectModalTitleInput.focus();
+  projectModalTitleInput.select();
+}
+
+function closeProjectModal() {
+  projectModalBackdrop.hidden = true;
+  editingProjectId = null;
+}
+
+function getEditingProject() {
+  return editingProjectId ? projects.find((p) => p.id === editingProjectId) ?? null : null;
+}
+
+function saveProjectModal() {
+  const project = getEditingProject();
+  if (!project) return;
+
+  const trimmedName = projectModalTitleInput.value.trim();
+  if (!trimmedName) {
+    projectModalTitleInput.focus();
+    return;
+  }
+
+  project.name = trimmedName;
+  project.description = projectModalDescInput.value.trim();
+
+  saveProjects();
+  render();
+  closeProjectModal();
+}
+
+function deleteProjectModal() {
+  if (!editingProjectId) return;
+  deleteProject(editingProjectId);
+  closeProjectModal();
 }
 
 // ---- Événements ----
@@ -1202,6 +1378,30 @@ modalDeleteBtn.addEventListener("click", () => {
 modalCancelBtn.addEventListener("click", closeTaskModal);
 modalCloseBtn.addEventListener("click", closeTaskModal);
 
+projectModalSaveBtn.addEventListener("click", saveProjectModal);
+projectModalDeleteBtn.addEventListener("click", () => {
+  const project = getEditingProject();
+  if (!project) return;
+  openConfirm({
+    text: `Supprimer le projet « ${project.name} » ? Les quêtes qu'il contient seront conservées, mais n'appartiendront plus à aucun projet.`,
+    confirmLabel: "Supprimer le projet",
+    onConfirm: deleteProjectModal,
+  });
+});
+projectModalCancelBtn.addEventListener("click", closeProjectModal);
+projectModalCloseBtn.addEventListener("click", closeProjectModal);
+
+projectModalBackdrop.addEventListener("click", (e) => {
+  if (e.target === projectModalBackdrop) closeProjectModal();
+});
+
+projectModalTitleInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    saveProjectModal();
+  }
+});
+
 confirmCancelBtn.addEventListener("click", closeConfirmDelete);
 confirmDeleteBtn.addEventListener("click", () => {
   const action = pendingConfirmAction;
@@ -1232,6 +1432,8 @@ document.addEventListener("keydown", (e) => {
     closeSettingsModal();
   } else if (!modalBackdrop.hidden) {
     closeTaskModal();
+  } else if (!projectModalBackdrop.hidden) {
+    closeProjectModal();
   }
 });
 

@@ -429,7 +429,8 @@ body {
   padding: 4px;
 }
 
-.sort-group-pill select {
+.sort-group-pill select,
+.project-toolbar select {
   appearance: none;
   -webkit-appearance: none;
   background-color: var(--parchment-500);
@@ -449,11 +450,13 @@ body {
   transition: filter 0.2s, border-color 0.2s;
 }
 
-.sort-group-pill select:hover {
+.sort-group-pill select:hover,
+.project-toolbar select:hover {
   filter: brightness(1.05);
 }
 
-.sort-group-pill select:focus {
+.sort-group-pill select:focus,
+.project-toolbar select:focus {
   border-color: var(--bronze-900);
 }
 
@@ -545,7 +548,15 @@ body {
   border-radius: 8px;
   padding: 12px 14px;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+}
+
+.task-item[draggable="true"] {
+  cursor: grab;
+}
+
+.task-item.dragging {
+  opacity: 0.4;
 }
 
 .task-item:hover {
@@ -1011,6 +1022,19 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin: -4px -6px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.project-header:hover {
+  background: var(--tint-soft);
+}
+
+.project-header:hover .project-name {
+  color: var(--accent-text);
 }
 
 .project-name {
@@ -1091,6 +1115,21 @@ body {
   height: 40px;
   padding: 0 18px;
   font-size: 13px;
+}
+
+.project-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-toolbar label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
 }
 
 .project-empty-hint {

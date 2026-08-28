@@ -101,7 +101,6 @@
             <option value="recent">Trier par</option>
             <option value="due">Échéance</option>
             <option value="priority">Priorité</option>
-            <option value="alpha">Alphabétique</option>
           </select>
         </div>
       </div>
@@ -266,6 +265,43 @@
       <div class="modal-footer-actions">
         <button type="button" id="modal-cancel" class="btn-ghost">Annuler</button>
         <button type="button" id="modal-save" class="btn-primary"><span>Enregistrer</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modale d'édition de projet ===== -->
+<div class="modal-backdrop" id="project-modal-backdrop" hidden>
+  <div class="modal panel" id="project-modal" role="dialog" aria-modal="true" aria-label="Modifier le projet">
+    <div class="modal-header">
+      <input
+        type="text"
+        id="project-modal-title-input"
+        class="modal-title-input"
+        maxlength="80"
+        placeholder="Nom du projet"
+        aria-label="Nom du projet"
+      >
+      <button type="button" id="project-modal-close" class="modal-close" aria-label="Fermer">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-field">
+        <label for="project-modal-desc-input">Description</label>
+        <textarea
+          id="project-modal-desc-input"
+          class="modal-textarea"
+          rows="6"
+          placeholder="Ajoutez plus de détails…"
+        ></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" id="project-modal-delete" class="modal-delete-btn">Supprimer le projet</button>
+      <div class="modal-footer-actions">
+        <button type="button" id="project-modal-cancel" class="btn-ghost">Annuler</button>
+        <button type="button" id="project-modal-save" class="btn-primary"><span>Enregistrer</span></button>
       </div>
     </div>
   </div>
