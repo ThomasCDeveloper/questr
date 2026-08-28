@@ -1164,6 +1164,88 @@ body {
   padding: 3px 8px;
 }
 
+/* ---------- Matrice d'Eisenhower ---------- */
+
+.matrix-panel {
+  padding: 20px;
+}
+
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.matrix-quadrant {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 14px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quadrant-do {
+  border-left-color: var(--danger);
+}
+
+.quadrant-schedule {
+  border-left-color: var(--sage);
+}
+
+.quadrant-delegate {
+  border-left-color: var(--amber);
+}
+
+.quadrant-eliminate {
+  border-left-color: var(--sand-600);
+}
+
+.matrix-quadrant-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-heading);
+}
+
+.matrix-quadrant-count {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--tint-soft);
+  border-radius: var(--radius-badge);
+  padding: 1px 8px;
+}
+
+.matrix-quadrant-hint {
+  margin: -4px 0 0;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.matrix-quadrant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.matrix-empty {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-align: center;
+  padding: 10px 4px;
+}
+
 /* ---------- Modale d'édition de tâche ---------- */
 
 .modal-backdrop {
@@ -1578,7 +1660,8 @@ body {
 /* ---------- Responsive ---------- */
 
 @media (max-width: 700px) {
-  .kanban-board {
+  .kanban-board,
+  .matrix-grid {
     grid-template-columns: 1fr;
   }
 }

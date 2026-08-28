@@ -34,6 +34,7 @@
       <button type="button" class="view-link" data-view="kanban">Kanban</button>
       <button type="button" class="view-link" data-view="calendar">Calendrier</button>
       <button type="button" class="view-link" data-view="project">Projets</button>
+      <button type="button" class="view-link" data-view="matrix">Matrice</button>
     </nav>
 
     <div class="topbar-actions">
@@ -183,6 +184,45 @@
     <div id="project-empty-state" class="empty-state">
       <p>Aucun projet pour l'instant. Créez-en un pour regrouper vos quêtes.</p>
     </div>
+  </section>
+
+  <!-- ===== Vue Matrice d'Eisenhower ===== -->
+  <section class="view" id="view-matrix" hidden>
+    <section class="panel matrix-panel">
+      <div class="matrix-grid">
+        <div class="matrix-quadrant quadrant-do" data-quadrant="do">
+          <h3 class="matrix-quadrant-title">
+            Faire <span class="matrix-quadrant-count" id="count-do">0</span>
+          </h3>
+          <p class="matrix-quadrant-hint">Urgent &amp; important</p>
+          <div class="matrix-quadrant-list" id="matrix-do"></div>
+        </div>
+
+        <div class="matrix-quadrant quadrant-schedule" data-quadrant="schedule">
+          <h3 class="matrix-quadrant-title">
+            Planifier <span class="matrix-quadrant-count" id="count-schedule">0</span>
+          </h3>
+          <p class="matrix-quadrant-hint">Important, pas urgent</p>
+          <div class="matrix-quadrant-list" id="matrix-schedule"></div>
+        </div>
+
+        <div class="matrix-quadrant quadrant-delegate" data-quadrant="delegate">
+          <h3 class="matrix-quadrant-title">
+            Déléguer <span class="matrix-quadrant-count" id="count-delegate">0</span>
+          </h3>
+          <p class="matrix-quadrant-hint">Urgent, pas important</p>
+          <div class="matrix-quadrant-list" id="matrix-delegate"></div>
+        </div>
+
+        <div class="matrix-quadrant quadrant-eliminate" data-quadrant="eliminate">
+          <h3 class="matrix-quadrant-title">
+            Éliminer <span class="matrix-quadrant-count" id="count-eliminate">0</span>
+          </h3>
+          <p class="matrix-quadrant-hint">Ni urgent, ni important</p>
+          <div class="matrix-quadrant-list" id="matrix-eliminate"></div>
+        </div>
+      </div>
+    </section>
   </section>
 
 </main>

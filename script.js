@@ -10,7 +10,9 @@ const PROJECTS_STORAGE_KEY = "grimoire-taches.projects";
 const VIEW_STORAGE_KEY = "grimoire-taches.view";
 const THEME_STORAGE_KEY = "grimoire-taches.theme";
 
-const VIEWS = ["list", "kanban", "calendar", "project"];
+const VIEWS = ["list", "kanban", "calendar", "project", "matrix"];
+const MATRIX_QUADRANTS = ["do", "schedule", "delegate", "eliminate"];
+const MATRIX_URGENT_WITHIN_DAYS = 3;
 
 const STATUSES = ["todo", "doing", "done"];
 const STATUS_LABEL = { todo: "À commencer", doing: "En cours", done: "Terminé" };
@@ -50,6 +52,7 @@ const viewSections = {
   kanban: document.getElementById("view-kanban"),
   calendar: document.getElementById("view-calendar"),
   project: document.getElementById("view-project"),
+  matrix: document.getElementById("view-matrix"),
 };
 
 // Vue Liste
@@ -80,6 +83,20 @@ const calTodayBtn = document.getElementById("cal-today");
 const agendaTitle = document.getElementById("agenda-title");
 const agendaList = document.getElementById("agenda-list");
 const agendaEmpty = document.getElementById("agenda-empty");
+
+// Vue Matrice d'Eisenhower
+const matrixLists = {
+  do: document.getElementById("matrix-do"),
+  schedule: document.getElementById("matrix-schedule"),
+  delegate: document.getElementById("matrix-delegate"),
+  eliminate: document.getElementById("matrix-eliminate"),
+};
+const matrixCounts = {
+  do: document.getElementById("count-do"),
+  schedule: document.getElementById("count-schedule"),
+  delegate: document.getElementById("count-delegate"),
+  eliminate: document.getElementById("count-eliminate"),
+};
 
 // Vue Projets
 const projectForm = document.getElementById("project-form");
@@ -482,6 +499,7 @@ function render() {
   else if (currentView === "kanban") renderKanbanView();
   else if (currentView === "calendar") renderCalendarView();
   else if (currentView === "project") renderProjectView();
+  else if (currentView === "matrix") renderMatrixView();
 }
 
 // ---- Vue Liste ----
@@ -686,14 +704,14 @@ function buildMetaRow(task) {
   if (task.difficulty) {
     const difficultyBadge = document.createElement("span");
     difficultyBadge.className = `badge difficulty-${task.difficulty}`;
-    difficultyBadge.textContent = `⚔ ${DIFFICULTY_LABEL[task.difficulty] ?? task.difficulty}`;
+    difficultyBadge.textContent = `${DIFFICULTY_LABEL[task.difficulty] ?? task.difficulty}`;
     meta.appendChild(difficultyBadge);
   }
 
   if (!task.description || !task.description.trim()) {
     const noDescBadge = document.createElement("span");
     noDescBadge.className = "badge no-desc";
-    noDescBadge.textContent = "⚠️ Sans description";
+    noDescBadge.textContent = "Sans description";
     meta.appendChild(noDescBadge);
   }
 
@@ -1325,6 +1343,57 @@ function deleteProjectModal() {
   if (!editingProjectId) return;
   deleteProject(editingProjectId);
   closeProjectModal();
+}
+
+// ---- Vue Matrice d'Eisenhower ----
+// Classe les quêtes actives selon deux axes déduits des champs existants,
+// sans ajouter de nouveau champ : l'urgence (échéance proche ou dépassée)
+// et l'importance (catégorie autre que « Fond »).
+
+function isTaskUrgent(task) {
+  if (!task.dueDate) return false;
+  return daysUntilDue(task.dueDate) <= MATRIX_URGENT_WITHIN_DAYS;
+}
+
+function isTaskImportant(task) {
+  return task.priority !== "low";
+}
+
+function getMatrixQuadrant(task) {
+  const urgent = isTaskUrgent(task);
+  const important = isTaskImportant(task);
+  if (urgent && important) return "do";
+  if (important) return "schedule";
+  if (urgent) return "delegate";
+  return "eliminate";
+}
+
+function renderMatrixView() {
+  const buckets = { do: [], schedule: [], delegate: [], eliminate: [] };
+  for (const task of tasks) {
+    if (task.status === "done") continue;
+    buckets[getMatrixQuadrant(task)].push(task);
+  }
+
+  for (const quadrant of MATRIX_QUADRANTS) {
+    const container = matrixLists[quadrant];
+    container.innerHTML = "";
+
+    const quadrantTasks = sortTasks(buckets[quadrant], "due");
+    matrixCounts[quadrant].textContent = String(quadrantTasks.length);
+
+    if (quadrantTasks.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "matrix-empty";
+      empty.textContent = "Aucune quête";
+      container.appendChild(empty);
+      continue;
+    }
+
+    for (const task of quadrantTasks) {
+      container.appendChild(renderTaskItem(task));
+    }
+  }
 }
 
 // ---- Événements ----
