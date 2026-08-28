@@ -16,9 +16,10 @@ const STATUSES = ["todo", "doing", "done"];
 const STATUS_LABEL = { todo: "À commencer", doing: "En cours", done: "Terminé" };
 const PRIORITY_LABEL = { low: "Fond", medium: "Todo", high: "Urgent" };
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+const DIFFICULTY_LABEL = { easy: "Facile", medium: "Modérée", hard: "Difficile" };
 
 /** @typedef {{id: string, text: string, done: boolean}} Subtask */
-/** @typedef {{id: string, text: string, priority: "low"|"medium"|"high", status: "todo"|"doing"|"done", dueDate: string|null, description: string, subtasks: Subtask[], createdAt: number, projectId: string|null}} Task */
+/** @typedef {{id: string, text: string, priority: "low"|"medium"|"high", status: "todo"|"doing"|"done", dueDate: string|null, description: string, subtasks: Subtask[], createdAt: number, projectId: string|null, difficulty: "easy"|"medium"|"hard"|null}} Task */
 /** @typedef {{id: string, name: string, description: string, sortMode: "manual"|"due"|"priority", taskOrder: string[], createdAt: number}} Project */
 
 /** @type {Task[]} */
@@ -102,6 +103,7 @@ const modalTitleInput = document.getElementById("modal-title-input");
 const modalPriorityInput = document.getElementById("modal-priority-input");
 const modalDueInput = document.getElementById("modal-due-input");
 const modalProjectInput = document.getElementById("modal-project-input");
+const modalDifficultyInput = document.getElementById("modal-difficulty-input");
 const modalDescInput = document.getElementById("modal-desc-input");
 const modalCloseBtn = document.getElementById("modal-close");
 const modalCancelBtn = document.getElementById("modal-cancel");
@@ -178,6 +180,7 @@ function normalizeTask(raw) {
     subtasks: Array.isArray(raw.subtasks) ? raw.subtasks.map(normalizeSubtask) : [],
     createdAt: raw.createdAt ?? Date.now(),
     projectId: raw.projectId ?? null,
+    difficulty: ["easy", "medium", "hard"].includes(raw.difficulty) ? raw.difficulty : null,
   };
 }
 
@@ -384,6 +387,7 @@ function addTask(text, projectId = null) {
     subtasks: [],
     createdAt: Date.now(),
     projectId: projectId ?? null,
+    difficulty: null,
   };
   tasks.unshift(task);
   saveTasks();
@@ -679,6 +683,13 @@ function buildMetaRow(task) {
     meta.appendChild(projectBadge);
   }
 
+  if (task.difficulty) {
+    const difficultyBadge = document.createElement("span");
+    difficultyBadge.className = `badge difficulty-${task.difficulty}`;
+    difficultyBadge.textContent = `⚔ ${DIFFICULTY_LABEL[task.difficulty] ?? task.difficulty}`;
+    meta.appendChild(difficultyBadge);
+  }
+
   if (!task.description || !task.description.trim()) {
     const noDescBadge = document.createElement("span");
     noDescBadge.className = "badge no-desc";
@@ -723,6 +734,7 @@ function openTaskModal(task) {
   modalPriorityInput.value = task.priority;
   modalDueInput.value = task.dueDate ?? "";
   modalDescInput.value = task.description ?? "";
+  modalDifficultyInput.value = task.difficulty ?? "";
   populateModalProjectOptions(task.projectId);
   modalSubtaskInput.value = "";
   renderModalSubtasks();
@@ -755,6 +767,7 @@ function saveTaskModal() {
   task.dueDate = modalDueInput.value || null;
   task.description = modalDescInput.value.trim();
   task.projectId = modalProjectInput.value || null;
+  task.difficulty = modalDifficultyInput.value || null;
 
   saveTasks();
   render();

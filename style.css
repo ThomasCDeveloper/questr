@@ -648,6 +648,23 @@ body {
   border-color: rgba(225, 74, 74, 0.35);
 }
 
+.badge.difficulty-easy {
+  color: var(--sage-text);
+  background: var(--sage-dim);
+  border-color: rgba(122, 154, 107, 0.35);
+}
+
+.badge.difficulty-medium {
+  color: var(--amber-text);
+  background: var(--amber-dim);
+  border-color: rgba(211, 146, 74, 0.35);
+}
+
+.badge.difficulty-hard {
+  color: var(--danger-text);
+  background: var(--danger-dim);
+  border-color: rgba(225, 74, 74, 0.35);
+}
 
 .badge.subtask-progress {
   font-family: var(--font-body);
