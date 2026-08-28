@@ -311,7 +311,7 @@ function showImportError(message) {
 }
 
 function exportTasksAsJson() {
-  const dataStr = JSON.stringify(tasks, null, 2);
+  const dataStr = JSON.stringify({ tasks, projects }, null, 2);
   const blob = new Blob([dataStr], { type: "application/json" });
   const url = URL.createObjectURL(blob);
 
@@ -337,18 +337,39 @@ function importTasksFromFile(file) {
       showImportError("Ce fichier n'est pas un JSON valide.");
       return;
     }
-    if (!Array.isArray(parsed)) {
-      showImportError("Ce fichier ne contient pas une liste de quêtes.");
+
+    // Ancien format : une simple liste de quêtes, sans projets.
+    // Nouveau format : { tasks: [...], projects: [...] }.
+    let importedTasks;
+    let importedProjects = null;
+    if (Array.isArray(parsed)) {
+      importedTasks = parsed;
+    } else if (parsed && Array.isArray(parsed.tasks)) {
+      importedTasks = parsed.tasks;
+      importedProjects = Array.isArray(parsed.projects) ? parsed.projects : [];
+    } else {
+      showImportError("Ce fichier ne contient pas de quêtes reconnues.");
       return;
     }
 
-    const count = parsed.length;
+    const taskCount = importedTasks.length;
+    const parts = [`${taskCount} quête${taskCount > 1 ? "s" : ""}`];
+    if (importedProjects) {
+      parts.push(`${importedProjects.length} projet${importedProjects.length > 1 ? "s" : ""}`);
+    }
+
     openConfirm({
-      text: `Importer ${count} quête${count > 1 ? "s" : ""} ? Cela remplacera définitivement toutes les quêtes actuelles.`,
+      text:
+        `Importer ${parts.join(" et ")} ? Cela remplacera définitivement toutes les quêtes actuelles` +
+        `${importedProjects ? " et tous les projets actuels" : ""}.`,
       confirmLabel: "Remplacer",
       onConfirm: () => {
-        tasks = parsed.map(normalizeTask);
+        tasks = importedTasks.map(normalizeTask);
         saveTasks();
+        if (importedProjects) {
+          projects = importedProjects.map(normalizeProject);
+          saveProjects();
+        }
         render();
         closeSettingsModal();
       },
