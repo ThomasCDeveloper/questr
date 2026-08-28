@@ -1016,25 +1016,22 @@ body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.project-panel:hover {
+  border-color: var(--line-strong);
+}
+
+.project-panel:hover .project-name {
+  color: var(--accent-text);
 }
 
 .project-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: -4px -6px;
-  padding: 4px 6px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.project-header:hover {
-  background: var(--tint-soft);
-}
-
-.project-header:hover .project-name {
-  color: var(--accent-text);
 }
 
 .project-name {
@@ -1099,6 +1096,7 @@ body {
   font-size: 13.5px;
   padding: 10px 12px;
   outline: none;
+  cursor: text;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -1324,6 +1322,10 @@ body {
   outline: none;
   resize: vertical;
   min-height: 100px;
+}
+
+.modal-textarea-lg {
+  min-height: 320px;
 }
 
 .modal-textarea::placeholder {

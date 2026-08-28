@@ -1092,14 +1092,14 @@ function renderProjectPanel(project) {
   const section = document.createElement("section");
   section.className = "panel project-panel";
   section.dataset.id = project.id;
+  section.title = "Cliquez pour modifier le projet";
+  section.addEventListener("click", (e) => {
+    if (e.target.closest(".project-delete-btn, .project-quest-form, .project-toolbar, .project-task-list")) return;
+    openProjectModal(project);
+  });
 
   const header = document.createElement("div");
   header.className = "project-header";
-  header.title = "Cliquez pour modifier le projet";
-  header.addEventListener("click", (e) => {
-    if (e.target.closest(".project-delete-btn")) return;
-    openProjectModal(project);
-  });
 
   const name = document.createElement("h3");
   name.className = "project-name";
