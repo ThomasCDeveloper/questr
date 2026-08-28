@@ -1347,8 +1347,9 @@ viewNav.addEventListener("click", (e) => {
 
 projectForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  addProject(projectInput.value);
+  const project = addProject(projectInput.value);
   projectInput.value = "";
+  if (project) openProjectModal(project);
 });
 
 themeToggleBtn.addEventListener("click", toggleTheme);
