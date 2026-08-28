@@ -6,8 +6,11 @@
 
 const STORAGE_KEY = "grimoire-taches.v2";
 const LEGACY_STORAGE_KEY = "grimoire-taches.v1";
+const PROJECTS_STORAGE_KEY = "grimoire-taches.projects";
 const VIEW_STORAGE_KEY = "grimoire-taches.view";
 const THEME_STORAGE_KEY = "grimoire-taches.theme";
+
+const VIEWS = ["list", "kanban", "calendar", "project"];
 
 const STATUSES = ["todo", "doing", "done"];
 const STATUS_LABEL = { todo: "À commencer", doing: "En cours", done: "Terminé" };
@@ -15,14 +18,17 @@ const PRIORITY_LABEL = { low: "Fond", medium: "Todo", high: "Urgent" };
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
 /** @typedef {{id: string, text: string, done: boolean}} Subtask */
-/** @typedef {{id: string, text: string, priority: "low"|"medium"|"high", status: "todo"|"doing"|"done", dueDate: string|null, description: string, subtasks: Subtask[], createdAt: number}} Task */
+/** @typedef {{id: string, text: string, priority: "low"|"medium"|"high", status: "todo"|"doing"|"done", dueDate: string|null, description: string, subtasks: Subtask[], createdAt: number, projectId: string|null}} Task */
+/** @typedef {{id: string, name: string, createdAt: number}} Project */
 
 /** @type {Task[]} */
 let tasks = loadTasks();
+/** @type {Project[]} */
+let projects = loadProjects();
 let currentFilter = "active"; // vue Liste : "active" | "done"
 let currentGroupBy = "none"; // vue Liste : "none" | "category" | "due" | "created"
 let currentSort = "recent"; // vue Liste : "recent" | "due" | "priority" | "alpha"
-let currentView = loadView(); // "list" | "kanban" | "calendar"
+let currentView = loadView(); // "list" | "kanban" | "calendar" | "project"
 
 const KANBAN_PAGE_SIZE = 5;
 let kanbanExpanded = { todo: false, doing: false, done: false };
@@ -41,6 +47,7 @@ const viewSections = {
   list: document.getElementById("view-list"),
   kanban: document.getElementById("view-kanban"),
   calendar: document.getElementById("view-calendar"),
+  project: document.getElementById("view-project"),
 };
 
 // Vue Liste
@@ -72,12 +79,19 @@ const agendaTitle = document.getElementById("agenda-title");
 const agendaList = document.getElementById("agenda-list");
 const agendaEmpty = document.getElementById("agenda-empty");
 
+// Vue Projets
+const projectForm = document.getElementById("project-form");
+const projectInput = document.getElementById("project-input");
+const projectListEl = document.getElementById("project-list");
+const projectEmptyState = document.getElementById("project-empty-state");
+
 // Modale d'édition de tâche
 const modalBackdrop = document.getElementById("task-modal-backdrop");
 const modal = document.getElementById("task-modal");
 const modalTitleInput = document.getElementById("modal-title-input");
 const modalPriorityInput = document.getElementById("modal-priority-input");
 const modalDueInput = document.getElementById("modal-due-input");
+const modalProjectInput = document.getElementById("modal-project-input");
 const modalDescInput = document.getElementById("modal-desc-input");
 const modalCloseBtn = document.getElementById("modal-close");
 const modalCancelBtn = document.getElementById("modal-cancel");
@@ -152,6 +166,7 @@ function normalizeTask(raw) {
     description: String(raw.description ?? ""),
     subtasks: Array.isArray(raw.subtasks) ? raw.subtasks.map(normalizeSubtask) : [],
     createdAt: raw.createdAt ?? Date.now(),
+    projectId: raw.projectId ?? null,
   };
 }
 
@@ -171,10 +186,38 @@ function saveTasks() {
   }
 }
 
+function loadProjects() {
+  try {
+    const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(normalizeProject) : [];
+  } catch (err) {
+    console.warn("Impossible de lire les projets enregistrés :", err);
+    return [];
+  }
+}
+
+function normalizeProject(raw) {
+  return {
+    id: raw?.id ?? makeId(),
+    name: String(raw?.name ?? "").trim(),
+    createdAt: raw?.createdAt ?? Date.now(),
+  };
+}
+
+function saveProjects() {
+  try {
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+  } catch (err) {
+    console.warn("Impossible d'enregistrer les projets :", err);
+  }
+}
+
 function loadView() {
   try {
     const saved = localStorage.getItem(VIEW_STORAGE_KEY);
-    return ["list", "kanban", "calendar"].includes(saved) ? saved : "list";
+    return VIEWS.includes(saved) ? saved : "list";
   } catch {
     return "list";
   }
@@ -314,7 +357,7 @@ function formatDaysRemaining(diffDays) {
 
 // ---- Actions (données) ----
 
-function addTask(text) {
+function addTask(text, projectId = null) {
   const trimmed = text.trim();
   if (!trimmed) return null;
   const task = {
@@ -326,6 +369,7 @@ function addTask(text) {
     description: "",
     subtasks: [],
     createdAt: Date.now(),
+    projectId: projectId ?? null,
   };
   tasks.unshift(task);
   saveTasks();
@@ -355,6 +399,34 @@ function deleteTask(id) {
   render();
 }
 
+// ---- Actions (projets) ----
+
+function addProject(name) {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const project = { id: makeId(), name: trimmed, createdAt: Date.now() };
+  projects.push(project);
+  saveProjects();
+  render();
+  return project;
+}
+
+function deleteProject(id) {
+  projects = projects.filter((p) => p.id !== id);
+  // Les quêtes du projet supprimé ne sont pas perdues : elles redeviennent
+  // simplement des quêtes sans projet.
+  for (const task of tasks) {
+    if (task.projectId === id) task.projectId = null;
+  }
+  saveProjects();
+  saveTasks();
+  render();
+}
+
+function getProjectById(id) {
+  return id ? projects.find((p) => p.id === id) ?? null : null;
+}
+
 function setFilter(filter) {
   currentFilter = filter;
   [...filtersEl.querySelectorAll(".filter-btn")].forEach((btn) => {
@@ -382,6 +454,7 @@ function render() {
   if (currentView === "list") renderListView();
   else if (currentView === "kanban") renderKanbanView();
   else if (currentView === "calendar") renderCalendarView();
+  else if (currentView === "project") renderProjectView();
 }
 
 // ---- Vue Liste ----
@@ -567,6 +640,14 @@ function buildMetaRow(task) {
   badge.textContent = PRIORITY_LABEL[task.priority] ?? task.priority;
   meta.appendChild(badge);
 
+  const project = getProjectById(task.projectId);
+  if (project) {
+    const projectBadge = document.createElement("span");
+    projectBadge.className = "badge project-tag";
+    projectBadge.textContent = project.name;
+    meta.appendChild(projectBadge);
+  }
+
   if (!task.description || !task.description.trim()) {
     const noDescBadge = document.createElement("span");
     noDescBadge.className = "badge no-desc";
@@ -587,12 +668,31 @@ function buildMetaRow(task) {
 
 // ---- Modale d'édition de tâche ----
 
+function populateModalProjectOptions(selectedId) {
+  modalProjectInput.innerHTML = "";
+
+  const noneOption = document.createElement("option");
+  noneOption.value = "";
+  noneOption.textContent = "Aucun";
+  modalProjectInput.appendChild(noneOption);
+
+  for (const project of projects) {
+    const option = document.createElement("option");
+    option.value = project.id;
+    option.textContent = project.name;
+    modalProjectInput.appendChild(option);
+  }
+
+  modalProjectInput.value = selectedId ?? "";
+}
+
 function openTaskModal(task) {
   editingTaskId = task.id;
   modalTitleInput.value = task.text;
   modalPriorityInput.value = task.priority;
   modalDueInput.value = task.dueDate ?? "";
   modalDescInput.value = task.description ?? "";
+  populateModalProjectOptions(task.projectId);
   modalSubtaskInput.value = "";
   renderModalSubtasks();
   modalBackdrop.hidden = false;
@@ -623,6 +723,7 @@ function saveTaskModal() {
   task.priority = modalPriorityInput.value;
   task.dueDate = modalDueInput.value || null;
   task.description = modalDescInput.value.trim();
+  task.projectId = modalProjectInput.value || null;
 
   saveTasks();
   render();
@@ -941,6 +1042,99 @@ function renderAgenda() {
   agendaEmpty.classList.toggle("visible", dayTasks.length === 0);
 }
 
+// ---- Vue Projets ----
+
+function renderProjectView() {
+  projectListEl.innerHTML = "";
+
+  for (const project of projects) {
+    projectListEl.appendChild(renderProjectPanel(project));
+  }
+
+  projectEmptyState.classList.toggle("visible", projects.length === 0);
+}
+
+function renderProjectPanel(project) {
+  const projectTasks = tasks.filter((t) => t.projectId === project.id);
+
+  const section = document.createElement("section");
+  section.className = "panel project-panel";
+  section.dataset.id = project.id;
+
+  const header = document.createElement("div");
+  header.className = "project-header";
+
+  const name = document.createElement("h3");
+  name.className = "project-name";
+  name.textContent = project.name;
+
+  const count = document.createElement("span");
+  count.className = "project-count";
+  count.textContent = `${projectTasks.length} quête${projectTasks.length > 1 ? "s" : ""}`;
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "project-delete-btn";
+  deleteBtn.textContent = "✕";
+  deleteBtn.setAttribute("aria-label", "Supprimer le projet");
+  deleteBtn.addEventListener("click", () => {
+    openConfirm({
+      text: `Supprimer le projet « ${project.name} » ? Les quêtes qu'il contient seront conservées, mais n'appartiendront plus à aucun projet.`,
+      confirmLabel: "Supprimer le projet",
+      onConfirm: () => deleteProject(project.id),
+    });
+  });
+
+  header.appendChild(name);
+  header.appendChild(count);
+  header.appendChild(deleteBtn);
+
+  const form = document.createElement("form");
+  form.className = "project-quest-form";
+  form.autocomplete = "off";
+
+  const questInput = document.createElement("input");
+  questInput.type = "text";
+  questInput.placeholder = "Ajouter une quête à ce projet…";
+  questInput.maxLength = 140;
+  questInput.required = true;
+
+  const submitBtn = document.createElement("button");
+  submitBtn.type = "submit";
+  submitBtn.className = "btn-primary";
+  submitBtn.innerHTML = "<span>+ Ajouter</span>";
+
+  form.appendChild(questInput);
+  form.appendChild(submitBtn);
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const task = addTask(questInput.value, project.id);
+    questInput.value = "";
+    if (task) openTaskModal(task);
+  });
+
+  const taskListEl = document.createElement("ul");
+  taskListEl.className = "task-list project-task-list";
+  for (const task of projectTasks) {
+    taskListEl.appendChild(renderTaskItem(task));
+  }
+
+  section.appendChild(header);
+  section.appendChild(form);
+
+  if (projectTasks.length > 0) {
+    section.appendChild(taskListEl);
+  } else {
+    const hint = document.createElement("p");
+    hint.className = "project-empty-hint";
+    hint.textContent = "Aucune quête dans ce projet.";
+    section.appendChild(hint);
+  }
+
+  return section;
+}
+
 // ---- Événements ----
 
 form.addEventListener("submit", (e) => {
@@ -970,6 +1164,12 @@ viewNav.addEventListener("click", (e) => {
   const btn = e.target.closest(".view-link");
   if (!btn) return;
   switchView(btn.dataset.view);
+});
+
+projectForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  addProject(projectInput.value);
+  projectInput.value = "";
 });
 
 themeToggleBtn.addEventListener("click", toggleTheme);

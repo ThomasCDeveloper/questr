@@ -989,6 +989,123 @@ body {
   display: block;
 }
 
+/* ---------- Projets ---------- */
+
+.project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.project-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.project-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-name {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-heading);
+  word-break: break-word;
+}
+
+.project-count {
+  flex: none;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--tint-soft);
+  border-radius: var(--radius-badge);
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+
+.project-delete-btn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.project-delete-btn:hover {
+  color: var(--danger-text);
+  border-color: rgba(225, 74, 74, 0.35);
+  background: var(--danger-dim);
+}
+
+.project-quest-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.project-quest-form input[type="text"] {
+  flex: 1 1 220px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.project-quest-form input[type="text"]::placeholder {
+  color: var(--text-faint);
+}
+
+.project-quest-form input[type="text"]:focus {
+  border-color: var(--bronze-500);
+  box-shadow: 0 0 0 3px rgba(173, 137, 85, 0.18);
+}
+
+.project-quest-form .btn-primary {
+  height: 40px;
+  padding: 0 18px;
+  font-size: 13px;
+}
+
+.project-empty-hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.badge.project-tag {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--accent-text);
+  background: var(--tint-soft);
+  border-color: var(--line);
+  padding: 3px 8px;
+}
+
 /* ---------- Modale d'édition de tâche ---------- */
 
 .modal-backdrop {

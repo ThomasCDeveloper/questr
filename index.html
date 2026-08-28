@@ -33,6 +33,7 @@
       <button type="button" class="view-link active" data-view="list">Liste</button>
       <button type="button" class="view-link" data-view="kanban">Kanban</button>
       <button type="button" class="view-link" data-view="calendar">Calendrier</button>
+      <button type="button" class="view-link" data-view="project">Projets</button>
     </nav>
 
     <div class="topbar-actions">
@@ -161,6 +162,30 @@
     </section>
   </section>
 
+  <!-- ===== Vue Projets ===== -->
+  <section class="view" id="view-project" hidden>
+    <section class="panel form-panel">
+      <form id="project-form" autocomplete="off">
+        <input
+          type="text"
+          id="project-input"
+          placeholder="Nom du nouveau projet…"
+          maxlength="80"
+          required
+        >
+        <button type="submit" class="btn-primary">
+          <span>+ Créer un projet</span>
+        </button>
+      </form>
+    </section>
+
+    <div id="project-list" class="project-list"></div>
+
+    <div id="project-empty-state" class="empty-state">
+      <p>Aucun projet pour l'instant. Créez-en un pour regrouper vos quêtes.</p>
+    </div>
+  </section>
+
 </main>
 
 <footer class="page-footer">
@@ -196,6 +221,13 @@
         <div class="modal-field">
           <label for="modal-due-input">Échéance</label>
           <input type="date" id="modal-due-input">
+        </div>
+
+        <div class="modal-field">
+          <label for="modal-project-input">Projet</label>
+          <select id="modal-project-input">
+            <option value="">Aucun</option>
+          </select>
         </div>
       </div>
 
