@@ -97,6 +97,7 @@ const matrixCounts = {
   delegate: document.getElementById("count-delegate"),
   eliminate: document.getElementById("count-eliminate"),
 };
+const matrixLegend = document.getElementById("matrix-legend");
 
 // Vue Projets
 const projectForm = document.getElementById("project-form");
@@ -1369,6 +1370,10 @@ function getMatrixQuadrant(task) {
 }
 
 function renderMatrixView() {
+  matrixLegend.innerHTML =
+    `<strong>Urgent</strong> : échéance dépassée, ou dans les ${MATRIX_URGENT_WITHIN_DAYS} prochains jours. ` +
+    `<strong>Important</strong> : catégorie « Todo » ou « Urgent » (tout sauf « Fond »).`;
+
   const buckets = { do: [], schedule: [], delegate: [], eliminate: [] };
   for (const task of tasks) {
     if (task.status === "done") continue;
