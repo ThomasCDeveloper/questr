@@ -350,13 +350,15 @@ body {
   padding: 18px;
 }
 
-#task-form {
+#task-form,
+#project-form {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-#task-input {
+#task-input,
+#project-input {
   flex: 1 1 260px;
   background: var(--bg-raised);
   border: 1px solid var(--line-strong);
@@ -369,11 +371,13 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-#task-input::placeholder {
+#task-input::placeholder,
+#project-input::placeholder {
   color: var(--text-faint);
 }
 
-#task-input:focus {
+#task-input:focus,
+#project-input:focus {
   border-color: var(--bronze-500);
   box-shadow: 0 0 0 3px rgba(173, 137, 85, 0.18);
 }
@@ -1531,10 +1535,12 @@ body {
   .panel {
     padding: 18px;
   }
-  #task-form {
+  #task-form,
+  #project-form {
     flex-direction: column;
   }
-  #task-form .btn-primary {
+  #task-form .btn-primary,
+  #project-form .btn-primary {
     width: 100%;
     justify-content: center;
   }

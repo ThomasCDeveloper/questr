@@ -38,6 +38,7 @@ let calendarCursor = { year: today.getFullYear(), month: today.getMonth() };
 let selectedDate = toDateStr(today);
 
 // ---- DOM refs ----
+const quickAddPanel = document.getElementById("quick-add-panel");
 const form = document.getElementById("task-form");
 const input = document.getElementById("task-input");
 const themeToggleBtn = document.getElementById("theme-toggle");
@@ -445,6 +446,8 @@ function switchView(view) {
   Object.entries(viewSections).forEach(([name, section]) => {
     section.hidden = name !== view;
   });
+  // La vue Projets a déjà son propre champ de création de quête par projet.
+  quickAddPanel.hidden = view === "project";
   render();
 }
 
