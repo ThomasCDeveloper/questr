@@ -91,18 +91,30 @@
           <button class="filter-btn" data-filter="done">Terminées</button>
         </div>
 
-        <div class="sort-group-pill">
-          <select id="group-select" aria-label="Classer par">
-            <option value="none">Classer par</option>
-            <option value="category">Catégorie</option>
-            <option value="due">Échéance</option>
-            <option value="created">Date de création</option>
-          </select>
-          <select id="sort-select" aria-label="Trier par">
-            <option value="recent">Trier par</option>
-            <option value="due">Échéance</option>
-            <option value="priority">Priorité</option>
-          </select>
+        <div class="list-toolbar-right">
+          <div class="sort-group-pill">
+            <select id="group-select" aria-label="Classer par">
+              <option value="none">Classer par</option>
+              <option value="category">Catégorie</option>
+              <option value="due">Échéance</option>
+              <option value="created">Date de création</option>
+            </select>
+          </div>
+
+          <div class="search-field">
+            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              id="search-input"
+              class="search-input"
+              placeholder="Filtrer par…"
+              aria-label="Filtrer les quêtes par titre, description ou projet"
+              autocomplete="off"
+            >
+          </div>
         </div>
       </div>
 

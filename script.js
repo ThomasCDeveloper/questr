@@ -30,7 +30,8 @@ let tasks = loadTasks();
 let projects = loadProjects();
 let currentFilter = "active"; // vue Liste : "active" | "done"
 let currentGroupBy = "none"; // vue Liste : "none" | "category" | "due" | "created"
-let currentSort = "recent"; // vue Liste : "recent" | "due" | "priority"
+let currentSort = "recent"; // vue Liste : ordre au sein d'un groupe (fixe, plus de sélecteur)
+let currentSearchQuery = ""; // vue Liste : filtre texte (titre, description, projet), déjà en minuscules
 let currentView = loadView(); // "list" | "kanban" | "calendar" | "project"
 
 const KANBAN_PAGE_SIZE = 5;
@@ -60,7 +61,7 @@ const list = document.getElementById("task-list");
 const emptyState = document.getElementById("empty-state");
 const filtersEl = document.getElementById("filters");
 const groupSelectEl = document.getElementById("group-select");
-const sortSelectEl = document.getElementById("sort-select");
+const searchInputEl = document.getElementById("search-input");
 
 // Vue Kanban
 const kanbanLists = {
@@ -527,9 +528,22 @@ function render() {
 // ---- Vue Liste ----
 
 function getFilteredTasks() {
-  return currentFilter === "done"
-    ? tasks.filter((t) => t.status === "done")
-    : tasks.filter((t) => t.status !== "done");
+  const byStatus =
+    currentFilter === "done"
+      ? tasks.filter((t) => t.status === "done")
+      : tasks.filter((t) => t.status !== "done");
+
+  if (!currentSearchQuery) return byStatus;
+  return byStatus.filter((t) => taskMatchesSearch(t, currentSearchQuery));
+}
+
+// Filtre en OU : titre, description, ou nom du projet rattaché.
+function taskMatchesSearch(task, query) {
+  if (task.text.toLowerCase().includes(query)) return true;
+  if (task.description && task.description.toLowerCase().includes(query)) return true;
+  const project = getProjectById(task.projectId);
+  if (project && project.name.toLowerCase().includes(query)) return true;
+  return false;
 }
 
 function sortTasks(list, sortKey) {
@@ -1442,8 +1456,8 @@ groupSelectEl.addEventListener("change", () => {
   render();
 });
 
-sortSelectEl.addEventListener("change", () => {
-  currentSort = sortSelectEl.value;
+searchInputEl.addEventListener("input", () => {
+  currentSearchQuery = searchInputEl.value.trim().toLowerCase();
   render();
 });
 
