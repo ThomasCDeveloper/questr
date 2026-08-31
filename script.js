@@ -171,6 +171,9 @@ const pomodoroPauseBtn = document.getElementById("pomodoro-pause-btn");
 const pomodoroCloseBtn = document.getElementById("pomodoro-close-btn");
 const pomodoroPopoutBtn = document.getElementById("pomodoro-popout-btn");
 pomodoroPopoutBtn.hidden = isPomodoroPopout; // pas de pop-out depuis un pop-out
+// Fenêtre Picture-in-Picture actuellement ouverte (voir openPomodoroPip), le
+// cas échéant — `null` sinon.
+let pomodoroPipWindow = null;
 // Une seule session à la fois, mais persistée dans localStorage (voir
 // persistPomodoroSession) pour rester visible et pilotable depuis la fenêtre
 // détachée : { taskId, endAt, remainingSeconds, intervalId }. `endAt` (une
@@ -849,13 +852,22 @@ function ensureNotificationPermission() {
 }
 
 function sendPomodoroNotification(task) {
-  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  if (!("Notification" in window)) return; // API absente (navigateur trop ancien, etc.)
+  if (Notification.permission !== "granted") {
+    // Échec silencieux sinon : l'utilisateur n'a aucun moyen de savoir que
+    // la notification n'a pas pu s'afficher (permission refusée/jamais
+    // demandée, ou navigateur qui la bloque sur ce contexte — ex. Chrome sur
+    // un fichier ouvert en local, plutôt qu'en http(s)).
+    showToast("Notification de fin de Pomodoro impossible : autorisez les notifications pour ce site dans votre navigateur.");
+    return;
+  }
   try {
     new Notification("Pomodoro terminé !", {
       body: task ? `« ${task.text} » — 25 minutes écoulées.` : "25 minutes écoulées.",
     });
   } catch (err) {
     console.warn("Impossible d'afficher la notification :", err);
+    showToast("Impossible d'afficher la notification (voir la console).");
   }
 }
 
@@ -1022,12 +1034,64 @@ function openPomodoroOverlay() {
 
 function closePomodoroOverlay() {
   pomodoroBackdrop.hidden = true;
-  if (isPomodoroPopout) document.title = "Livre de Quêtes";
+  if (isPomodoroPopout) document.title = "Livre de quêtes";
+  if (pomodoroPipWindow) pomodoroPipWindow.close(); // déclenche pagehide -> replace l'écran
 }
 
-function openPomodoroPopout() {
-  const url = `${location.pathname}?pomodoro=popout`;
-  window.open(url, "pomodoro-popout", "width=380,height=480,menubar=no,toolbar=no,location=no,status=no");
+// Fenêtre détachée du Pomodoro : Picture-in-Picture (vraiment "toujours au-
+// dessus", mais Chrome/Edge uniquement) si le navigateur le permet, sinon
+// une fenêtre classique comme avant.
+async function openPomodoroPopout() {
+  if ("documentPictureInPicture" in window) {
+    try {
+      await openPomodoroPip();
+      return;
+    } catch (err) {
+      console.warn("Picture-in-picture indisponible, ouverture d'une fenêtre classique :", err);
+    }
+  }
+  window.open(
+    `${location.pathname}?pomodoro=popout`,
+    "pomodoro-popout",
+    "width=380,height=480,menubar=no,toolbar=no,location=no,status=no"
+  );
+}
+
+// Contrairement à window.open, une fenêtre Picture-in-Picture partage le
+// même contexte JS que l'onglet principal : on y déplace directement l'écran
+// Pomodoro (même nœud DOM, mêmes écouteurs, même `pomodoroSession`), sans
+// avoir besoin de synchroniser quoi que ce soit via localStorage.
+async function openPomodoroPip() {
+  if (pomodoroPipWindow && !pomodoroPipWindow.closed) {
+    pomodoroPipWindow.focus();
+    return;
+  }
+
+  const pip = await documentPictureInPicture.requestWindow({ width: 360, height: 420 });
+  pomodoroPipWindow = pip;
+  pip.document.title = "Pomodoro";
+  pip.document.documentElement.dataset.theme = document.documentElement.dataset.theme;
+
+  // Recopie les feuilles de style (police + style.css) : sans ça la fenêtre
+  // flottante s'affiche sans aucun style.
+  document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+    pip.document.head.appendChild(link.cloneNode());
+  });
+
+  const backdropHome = pomodoroBackdrop.parentNode;
+  pip.document.body.appendChild(pomodoroBackdrop);
+  pomodoroBackdrop.hidden = false; // cette fenêtre n'existe que pour l'afficher
+  pomodoroPopoutBtn.hidden = true; // pas de pop-out depuis le pop-out
+
+  pip.addEventListener(
+    "pagehide",
+    () => {
+      backdropHome.appendChild(pomodoroBackdrop); // rend l'écran à la fenêtre principale
+      pomodoroPipWindow = null;
+      pomodoroPopoutBtn.hidden = isPomodoroPopout;
+    },
+    { once: true }
+  );
 }
 
 // Appelée quand la session Pomodoro a changé dans une autre fenêtre (via
