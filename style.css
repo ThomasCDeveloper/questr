@@ -729,15 +729,32 @@ body {
   color: var(--sage-text);
 }
 
-.badge.no-desc {
+.badge.tag {
   font-family: var(--font-body);
   font-size: 11px;
   font-weight: 500;
   text-transform: none;
-  color: var(--amber-text);
-  background: var(--amber-dim);
-  border-color: rgba(211, 146, 74, 0.35);
+  color: var(--text-muted);
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--line-strong);
   padding: 3px 8px;
+}
+
+.badge.tag::before {
+  content: "#";
+  opacity: 0.55;
+}
+
+.badge.tag-overflow {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--text-faint);
+  background: transparent;
+  border-color: var(--line);
+  padding: 3px 6px;
 }
 
 .task-due-inline {
@@ -1639,8 +1656,8 @@ body {
   flex: none;
   width: 34px;
   border-radius: 8px;
-  border: none;
-  background: linear-gradient(180deg, var(--parchment-300), var(--bronze-500));
+  border: 1px solid var(--bronze-700);
+  background: var(--parchment-500);
   color: var(--bronze-900);
   font-size: 15px;
   font-weight: 700;
@@ -1649,7 +1666,85 @@ body {
 }
 
 .subtask-add-btn:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.08);
+}
+
+.tag-chip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip-list:not(:empty) {
+  margin-bottom: 8px;
+}
+
+.tag-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 4px 3px 9px;
+  border-radius: var(--radius-badge);
+  background: var(--tint-soft);
+  border: 1px dashed var(--line-strong);
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.tag-chip::before {
+  content: "#";
+  opacity: 0.55;
+}
+
+.tag-chip-remove {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.tag-chip-remove:hover {
+  color: var(--danger-text);
+  background: var(--danger-dim);
+}
+
+.tag-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.tag-form input[type="text"] {
+  flex: 1;
+  background: var(--bg-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.tag-form input[type="text"]::placeholder {
+  color: var(--text-faint);
+}
+
+.tag-form input[type="text"]:focus {
+  border-color: var(--bronze-500);
 }
 
 .modal-footer {

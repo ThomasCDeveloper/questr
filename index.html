@@ -74,7 +74,6 @@
         id="task-input"
         placeholder="Décrire une nouvelle quête…"
         maxlength="140"
-        required
       >
       <button type="submit" class="btn-primary">
         <span>+ Ajouter</span>
@@ -98,6 +97,7 @@
               <option value="category">Catégorie</option>
               <option value="due">Échéance</option>
               <option value="created">Date de création</option>
+              <option value="tag">Tag</option>
             </select>
           </div>
 
@@ -111,7 +111,7 @@
               id="search-input"
               class="search-input"
               placeholder="Filtrer par…"
-              aria-label="Filtrer les quêtes par titre, description ou projet"
+              aria-label="Filtrer les quêtes par titre, description, projet ou tag"
               autocomplete="off"
             >
           </div>
@@ -183,7 +183,6 @@
           id="project-input"
           placeholder="Nom du nouveau projet…"
           maxlength="80"
-          required
         >
         <button type="submit" class="btn-primary">
           <span>+ Créer un projet</span>
@@ -316,6 +315,22 @@
             maxlength="80"
           >
           <button type="submit" class="subtask-add-btn" aria-label="Ajouter la sous-tâche">+</button>
+        </form>
+      </div>
+
+      <div class="modal-field">
+        <label for="modal-tag-input">Tags</label>
+        <ul class="tag-chip-list" id="modal-tag-list"></ul>
+        <form id="modal-tag-form" class="tag-form" autocomplete="off">
+          <input
+            type="text"
+            id="modal-tag-input"
+            list="modal-tag-datalist"
+            placeholder="Ajouter un tag… (Entrée)"
+            maxlength="24"
+          >
+          <datalist id="modal-tag-datalist"></datalist>
+          <button type="submit" class="subtask-add-btn" aria-label="Ajouter le tag">+</button>
         </form>
       </div>
     </div>

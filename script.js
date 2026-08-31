@@ -25,9 +25,11 @@ const STATUS_LABEL = { todo: "À commencer", doing: "En cours", done: "Terminé"
 const PRIORITY_LABEL = { low: "Fond", medium: "Todo", high: "Urgent" };
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 const DIFFICULTY_LABEL = { easy: "Facile", medium: "Modérée", hard: "Difficile" };
+const MAX_TAGS_PER_TASK = 6;
+const MAX_TAG_LENGTH = 24;
 
 /** @typedef {{id: string, text: string, done: boolean}} Subtask */
-/** @typedef {{id: string, text: string, priority: "low"|"medium"|"high", status: "todo"|"doing"|"done", dueDate: string|null, description: string, subtasks: Subtask[], createdAt: number, projectId: string|null, difficulty: "easy"|"medium"|"hard"|null}} Task */
+/** @typedef {{id: string, text: string, priority: "low"|"medium"|"high", status: "todo"|"doing"|"done", dueDate: string|null, description: string, subtasks: Subtask[], createdAt: number, projectId: string|null, difficulty: "easy"|"medium"|"hard"|null, tags: string[]}} Task */
 /** @typedef {{id: string, name: string, description: string, sortMode: "manual"|"due"|"priority", taskOrder: string[], createdAt: number}} Project */
 
 /** @type {Task[]} */
@@ -35,7 +37,7 @@ let tasks = loadTasks();
 /** @type {Project[]} */
 let projects = loadProjects();
 let currentFilter = "active"; // vue Liste : "active" | "done"
-let currentGroupBy = "none"; // vue Liste : "none" | "category" | "due" | "created"
+let currentGroupBy = "none"; // vue Liste : "none" | "category" | "due" | "created" | "tag"
 let currentSearchQuery = ""; // vue Liste : filtre texte (titre, description, projet), déjà en minuscules
 let currentView = loadView(); // "list" | "kanban" | "calendar" | "project"
 
@@ -139,6 +141,10 @@ const modalSubtaskInput = document.getElementById("modal-subtask-input");
 const modalSubtasksProgress = document.getElementById("modal-subtasks-progress");
 const modalSubtasksBar = document.getElementById("modal-subtasks-bar");
 const modalSubtasksFill = document.getElementById("modal-subtasks-fill");
+const modalTagList = document.getElementById("modal-tag-list");
+const modalTagForm = document.getElementById("modal-tag-form");
+const modalTagInput = document.getElementById("modal-tag-input");
+const modalTagDatalist = document.getElementById("modal-tag-datalist");
 
 // Paramètres
 const settingsToggleBtn = document.getElementById("settings-toggle");
@@ -183,6 +189,10 @@ let pomodoroSession = null;
 
 let editingTaskId = null;
 let editingProjectId = null;
+// Brouillon des tags de la tâche en cours d'édition (voir "Tags" plus bas) :
+// contrairement aux sous-tâches, appliqué à la tâche seulement à l'enregistrement,
+// comme le titre, l'échéance, etc.
+let modalTagsDraft = [];
 
 // ---- Persistence ----
 
@@ -230,7 +240,37 @@ function normalizeTask(raw) {
     createdAt: raw.createdAt ?? Date.now(),
     projectId: raw.projectId ?? null,
     difficulty: ["easy", "medium", "hard"].includes(raw.difficulty) ? raw.difficulty : null,
+    tags: sanitizeTags(raw.tags),
   };
+}
+
+// Nettoie une liste de tags bruts : espaces superflus, entrées vides, doublons
+// (comparaison insensible à la casse, mais la casse saisie est conservée),
+// longueur et nombre plafonnés.
+function sanitizeTags(rawTags) {
+  if (!Array.isArray(rawTags)) return [];
+  const seen = new Set();
+  const result = [];
+  for (const raw of rawTags) {
+    const trimmed = String(raw ?? "").trim().slice(0, MAX_TAG_LENGTH);
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
+    if (result.length >= MAX_TAGS_PER_TASK) break;
+  }
+  return result;
+}
+
+// Tags distincts utilisés sur l'ensemble des tâches, triés — sert à
+// l'autocomplétion dans la modale et au regroupement par tag.
+function getAllTags() {
+  const set = new Set();
+  for (const task of tasks) {
+    for (const tag of task.tags) set.add(tag);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "fr"));
 }
 
 function normalizeSubtask(raw) {
@@ -457,9 +497,10 @@ function formatDaysRemaining(diffDays) {
 
 // ---- Actions (données) ----
 
+// Le titre peut être vide (ajout rapide sans texte, voir closeTaskModal) :
+// la quête s'ouvre alors directement dans sa modale, prête à être nommée.
 function addTask(text, projectId = null) {
   const trimmed = text.trim();
-  if (!trimmed) return null;
   const task = {
     id: makeId(),
     text: trimmed,
@@ -471,6 +512,7 @@ function addTask(text, projectId = null) {
     createdAt: Date.now(),
     projectId: projectId ?? null,
     difficulty: null,
+    tags: [],
   };
   tasks.unshift(task);
   saveTasks();
@@ -502,9 +544,10 @@ function deleteTask(id) {
 
 // ---- Actions (projets) ----
 
+// Le nom peut être vide (ajout rapide sans texte, voir closeProjectModal) :
+// le projet s'ouvre alors directement dans sa modale, prêt à être nommé.
 function addProject(name) {
   const trimmed = name.trim();
-  if (!trimmed) return null;
   const project = {
     id: makeId(),
     name: trimmed,
@@ -580,12 +623,13 @@ function getFilteredTasks() {
   return byStatus.filter((t) => taskMatchesSearch(t, currentSearchQuery));
 }
 
-// Filtre en OU : titre, description, ou nom du projet rattaché.
+// Filtre en OU : titre, description, nom du projet rattaché, ou tags.
 function taskMatchesSearch(task, query) {
   if (task.text.toLowerCase().includes(query)) return true;
   if (task.description && task.description.toLowerCase().includes(query)) return true;
   const project = getProjectById(task.projectId);
   if (project && project.name.toLowerCase().includes(query)) return true;
+  if (task.tags.some((tag) => tag.toLowerCase().includes(query))) return true;
   return false;
 }
 
@@ -611,6 +655,7 @@ function groupTasks(list, groupBy) {
   if (groupBy === "category") return groupByCategory(list);
   if (groupBy === "due") return groupByDueDate(list);
   if (groupBy === "created") return groupByCreatedDate(list);
+  if (groupBy === "tag") return groupByTag(list);
   return null;
 }
 
@@ -635,6 +680,25 @@ function groupByDueDate(list) {
 
   if (withoutDate.length > 0) {
     groups.push({ label: "Sans échéance", tasks: withoutDate });
+  }
+
+  return groups;
+}
+
+// Contrairement aux autres regroupements, une tâche multi-tags apparaît dans
+// plusieurs groupes (elle n'est pas "rangée" une seule fois).
+function groupByTag(list) {
+  const tagged = list.filter((t) => t.tags.length > 0);
+  const untagged = list.filter((t) => t.tags.length === 0);
+  const allTags = [...new Set(tagged.flatMap((t) => t.tags))].sort((a, b) => a.localeCompare(b, "fr"));
+
+  const groups = allTags.map((tag) => ({
+    label: `#${tag}`,
+    tasks: list.filter((t) => t.tags.includes(tag)),
+  }));
+
+  if (untagged.length > 0) {
+    groups.push({ label: "Sans tag", tasks: untagged });
   }
 
   return groups;
@@ -813,19 +877,29 @@ function buildMetaRow(task) {
     meta.appendChild(difficultyBadge);
   }
 
-  if (!task.description || !task.description.trim()) {
-    const noDescBadge = document.createElement("span");
-    noDescBadge.className = "badge no-desc";
-    noDescBadge.textContent = "Sans description";
-    meta.appendChild(noDescBadge);
-  }
-
   if (task.subtasks && task.subtasks.length > 0) {
     const done = task.subtasks.filter((s) => s.done).length;
     const subBadge = document.createElement("span");
     subBadge.className = "badge subtask-progress" + (done === task.subtasks.length ? " all-done" : "");
     subBadge.textContent = `☑ ${done}/${task.subtasks.length}`;
     meta.appendChild(subBadge);
+  }
+
+  if (task.tags.length > 0) {
+    const VISIBLE_TAGS = 3; // au-delà, un badge "+N" évite de saturer la ligne
+    for (const tag of task.tags.slice(0, VISIBLE_TAGS)) {
+      const tagBadge = document.createElement("span");
+      tagBadge.className = "badge tag";
+      tagBadge.textContent = tag;
+      meta.appendChild(tagBadge);
+    }
+    const hiddenCount = task.tags.length - VISIBLE_TAGS;
+    if (hiddenCount > 0) {
+      const overflowBadge = document.createElement("span");
+      overflowBadge.className = "badge tag-overflow";
+      overflowBadge.textContent = `+${hiddenCount}`;
+      meta.appendChild(overflowBadge);
+    }
   }
 
   return meta;
@@ -1166,12 +1240,25 @@ function openTaskModal(task) {
   populateModalProjectOptions(task.projectId);
   modalSubtaskInput.value = "";
   renderModalSubtasks();
+  modalTagsDraft = [...task.tags];
+  modalTagInput.value = "";
+  populateModalTagDatalist();
+  renderModalTags();
   modalBackdrop.hidden = false;
   modalTitleInput.focus();
   modalTitleInput.select();
 }
 
+// Une quête créée sans titre (ajout rapide vide, puis fermée sans être
+// nommée) n'a jamais été validée : on l'enlève plutôt que de laisser une
+// quête fantôme dans la liste.
 function closeTaskModal() {
+  const task = getEditingTask();
+  if (task && !task.text.trim()) {
+    tasks = tasks.filter((t) => t.id !== task.id);
+    saveTasks();
+    render();
+  }
   modalBackdrop.hidden = true;
   editingTaskId = null;
 }
@@ -1192,6 +1279,7 @@ function applyTaskModalFields(task) {
   task.description = modalDescInput.value.trim();
   task.projectId = modalProjectInput.value || null;
   task.difficulty = modalDifficultyInput.value || null;
+  task.tags = [...modalTagsDraft];
   return true;
 }
 
@@ -1346,6 +1434,65 @@ function deleteSubtask(taskId, subtaskId) {
   saveTasks();
   render();
   renderModalSubtasks();
+}
+
+// ---- Tags ----
+// Contrairement aux sous-tâches, un simple brouillon (modalTagsDraft) tant
+// que la modale est ouverte : appliqué à la tâche uniquement à
+// l'enregistrement, comme le titre ou l'échéance (voir applyTaskModalFields).
+
+function renderModalTags() {
+  modalTagList.innerHTML = "";
+  for (const tag of modalTagsDraft) {
+    modalTagList.appendChild(renderTagChip(tag, { removable: true }));
+  }
+}
+
+function renderTagChip(tag, { removable = false } = {}) {
+  const li = document.createElement("li");
+  li.className = "tag-chip";
+
+  const label = document.createElement("span");
+  label.textContent = tag;
+  li.appendChild(label);
+
+  if (removable) {
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "tag-chip-remove";
+    removeBtn.textContent = "✕";
+    removeBtn.setAttribute("aria-label", `Retirer le tag ${tag}`);
+    removeBtn.addEventListener("click", () => removeDraftTag(tag));
+    li.appendChild(removeBtn);
+  }
+
+  return li;
+}
+
+function addDraftTag(rawText) {
+  const trimmed = rawText.trim();
+  if (!trimmed) return;
+  if (modalTagsDraft.length >= MAX_TAGS_PER_TASK) {
+    showToast(`Maximum ${MAX_TAGS_PER_TASK} tags par quête.`);
+    return;
+  }
+  modalTagsDraft = sanitizeTags([...modalTagsDraft, trimmed]);
+}
+
+function removeDraftTag(tag) {
+  modalTagsDraft = modalTagsDraft.filter((t) => t !== tag);
+  renderModalTags();
+}
+
+// Autocomplétion : reprend les tags déjà utilisés ailleurs, pour éviter les
+// quasi-doublons ("urgent" vs "Urgent") plutôt que les empêcher.
+function populateModalTagDatalist() {
+  modalTagDatalist.innerHTML = "";
+  for (const tag of getAllTags()) {
+    const option = document.createElement("option");
+    option.value = tag;
+    modalTagDatalist.appendChild(option);
+  }
 }
 
 // ---- Vue Kanban ----
@@ -1594,7 +1741,6 @@ function renderProjectPanel(project) {
   questInput.type = "text";
   questInput.placeholder = "Ajouter une quête à ce projet…";
   questInput.maxLength = 140;
-  questInput.required = true;
 
   const submitBtn = document.createElement("button");
   submitBtn.type = "submit";
@@ -1741,7 +1887,16 @@ function openProjectModal(project) {
   projectModalTitleInput.select();
 }
 
+// Un projet créé sans nom (ajout rapide vide, puis fermé sans être nommé)
+// n'a jamais été validé : on l'enlève plutôt que de laisser un projet
+// fantôme dans la liste.
 function closeProjectModal() {
+  const project = getEditingProject();
+  if (project && !project.name.trim()) {
+    projects = projects.filter((p) => p.id !== project.id);
+    saveProjects();
+    render();
+  }
   projectModalBackdrop.hidden = true;
   editingProjectId = null;
 }
@@ -1996,6 +2151,17 @@ modalSubtaskForm.addEventListener("submit", (e) => {
   addSubtask(editingTaskId, modalSubtaskInput.value);
   modalSubtaskInput.value = "";
   modalSubtaskInput.focus();
+});
+
+modalTagForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!editingTaskId) return;
+  // Autorise "urgent, client" pour poser plusieurs tags en une fois.
+  const parts = modalTagInput.value.split(",").map((s) => s.trim()).filter(Boolean);
+  for (const part of parts) addDraftTag(part);
+  modalTagInput.value = "";
+  renderModalTags();
+  modalTagInput.focus();
 });
 
 calPrevBtn.addEventListener("click", () => {
