@@ -9,6 +9,12 @@ const LEGACY_STORAGE_KEY = "grimoire-taches.v1";
 const PROJECTS_STORAGE_KEY = "grimoire-taches.projects";
 const VIEW_STORAGE_KEY = "grimoire-taches.view";
 const THEME_STORAGE_KEY = "grimoire-taches.theme";
+const POMODORO_STORAGE_KEY = "grimoire-taches.pomodoro";
+
+// Fenêtre détachée (pop-out) de l'écran Pomodoro : `index.html?pomodoro=popout`,
+// ouverte via window.open. Elle exécute exactement le même script, mais
+// n'affiche que l'écran Pomodoro (voir le bloc Init en bas de fichier).
+const isPomodoroPopout = new URLSearchParams(location.search).get("pomodoro") === "popout";
 
 const VIEWS = ["list", "kanban", "calendar", "project", "matrix"];
 const MATRIX_QUADRANTS = ["do", "schedule", "delegate", "eliminate"];
@@ -30,7 +36,6 @@ let tasks = loadTasks();
 let projects = loadProjects();
 let currentFilter = "active"; // vue Liste : "active" | "done"
 let currentGroupBy = "none"; // vue Liste : "none" | "category" | "due" | "created"
-let currentSort = "recent"; // vue Liste : ordre au sein d'un groupe (fixe, plus de sélecteur)
 let currentSearchQuery = ""; // vue Liste : filtre texte (titre, description, projet), déjà en minuscules
 let currentView = loadView(); // "list" | "kanban" | "calendar" | "project"
 
@@ -151,6 +156,28 @@ const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const confirmDeleteBtn = document.getElementById("confirm-delete-btn");
 let pendingConfirmAction = null;
 
+// Toast (retour d'erreur, ex : échec d'enregistrement)
+const toastEl = document.getElementById("toast");
+let toastTimer = null;
+
+// Écran Pomodoro
+const POMODORO_DURATION_SECONDS = 25 * 60;
+const pomodoroBackdrop = document.getElementById("pomodoro-backdrop");
+const pomodoroTaskTitle = document.getElementById("pomodoro-task-title");
+const pomodoroProgressFill = document.getElementById("pomodoro-progress-fill");
+const pomodoroTimeEl = document.getElementById("pomodoro-time");
+const pomodoroStatusEl = document.getElementById("pomodoro-status");
+const pomodoroPauseBtn = document.getElementById("pomodoro-pause-btn");
+const pomodoroCloseBtn = document.getElementById("pomodoro-close-btn");
+const pomodoroPopoutBtn = document.getElementById("pomodoro-popout-btn");
+pomodoroPopoutBtn.hidden = isPomodoroPopout; // pas de pop-out depuis un pop-out
+// Une seule session à la fois, mais persistée dans localStorage (voir
+// persistPomodoroSession) pour rester visible et pilotable depuis la fenêtre
+// détachée : { taskId, endAt, remainingSeconds, intervalId }. `endAt` (une
+// échéance absolue) vaut `null` tant que la session est en pause (ou
+// terminée) ; `intervalId` n'existe que dans cette fenêtre, jamais persisté.
+let pomodoroSession = null;
+
 let editingTaskId = null;
 let editingProjectId = null;
 
@@ -216,6 +243,7 @@ function saveTasks() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   } catch (err) {
     console.warn("Impossible d'enregistrer les tâches :", err);
+    showToast("Échec de l'enregistrement des quêtes. Vos derniers changements risquent d'être perdus.");
   }
 }
 
@@ -247,6 +275,7 @@ function saveProjects() {
     localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
   } catch (err) {
     console.warn("Impossible d'enregistrer les projets :", err);
+    showToast("Échec de l'enregistrement des projets. Vos derniers changements risquent d'être perdus.");
   }
 }
 
@@ -269,6 +298,17 @@ function saveView() {
 
 function makeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// ---- Toast ----
+
+function showToast(message, duration = 5000) {
+  toastEl.textContent = message;
+  toastEl.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.hidden = true;
+  }, duration);
 }
 
 // ---- Thème (clair / sombre) ----
@@ -614,13 +654,13 @@ function renderListView() {
   if (groups) {
     for (const group of groups) {
       list.appendChild(renderGroupSeparator(group.label));
-      for (const task of sortTasks(group.tasks, currentSort)) {
-        list.appendChild(renderTaskItem(task));
+      for (const task of sortTasks(group.tasks, "recent")) {
+        list.appendChild(renderTaskItem(task, { pomodoro: true }));
       }
     }
   } else {
-    for (const task of sortTasks(filtered, currentSort)) {
-      list.appendChild(renderTaskItem(task));
+    for (const task of sortTasks(filtered, "recent")) {
+      list.appendChild(renderTaskItem(task, { pomodoro: true }));
     }
   }
 
@@ -639,7 +679,7 @@ function renderGroupSeparator(label) {
   return li;
 }
 
-function renderTaskItem(task, { draggable = false } = {}) {
+function renderTaskItem(task, { draggable = false, pomodoro = false } = {}) {
   const li = document.createElement("li");
   li.className = "task-item" + (task.status === "done" ? " done" : "");
   li.dataset.id = task.id;
@@ -682,7 +722,33 @@ function renderTaskItem(task, { draggable = false } = {}) {
   li.appendChild(checkBtn);
   li.appendChild(body);
 
+  if (pomodoro) {
+    li.appendChild(renderPomodoroButton(task));
+  }
+
   return li;
+}
+
+// Bouton "Pomodoro" / "Reprendre", aligné à droite de la quête (vue Liste
+// uniquement — voir l'appel dans renderListView).
+function renderPomodoroButton(task) {
+  // Une session existe déjà pour cette quête (en cours, en pause, ou
+  // terminée mais pas encore refermée) : on la rejoint plutôt que d'en
+  // démarrer une nouvelle.
+  const hasSession = pomodoroSession && pomodoroSession.taskId === task.id;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "pomodoro-btn";
+  btn.textContent = hasSession ? "Reprendre" : "Pomodoro";
+  btn.setAttribute("aria-label", hasSession ? "Reprendre la session Pomodoro" : "Démarrer une session Pomodoro (25 min)");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation(); // n'ouvre pas la modale d'édition de la quête
+    if (hasSession) resumePomodoro(task.id);
+    else startPomodoro(task.id);
+  });
+
+  return btn;
 }
 
 function renderTaskTitle(textEl, task) {
@@ -762,6 +828,250 @@ function buildMetaRow(task) {
   return meta;
 }
 
+// ---- Pomodoro ----
+// Écran plein cadre, accessible depuis la vue Liste. Une pause fige le
+// décompte et revient à la liste (le bouton "Pomodoro" de la quête devient
+// "Reprendre") ; "Revenir à la liste" abandonne la session. À la fin du
+// décompte, une notification navigateur est envoyée. Peut aussi s'ouvrir
+// dans sa propre fenêtre (pop-out), synchronisée via localStorage.
+
+function formatPomodoroTime(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function ensureNotificationPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+function sendPomodoroNotification(task) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    new Notification("Pomodoro terminé !", {
+      body: task ? `« ${task.text} » — 25 minutes écoulées.` : "25 minutes écoulées.",
+    });
+  } catch (err) {
+    console.warn("Impossible d'afficher la notification :", err);
+  }
+}
+
+// Persistance de la session dans localStorage : c'est ce qui permet à la
+// fenêtre détachée (pop-out) de lire et suivre le décompte en direct. Le
+// décompte se base sur une échéance absolue (`endAt`) plutôt qu'un compteur
+// décrémenté : chaque fenêtre peut ainsi recalculer le temps restant de son
+// côté sans dérive, sans avoir besoin d'être synchronisée à la seconde près.
+function persistPomodoroSession() {
+  try {
+    if (!pomodoroSession) {
+      localStorage.removeItem(POMODORO_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(
+      POMODORO_STORAGE_KEY,
+      JSON.stringify({
+        taskId: pomodoroSession.taskId,
+        endAt: pomodoroSession.endAt,
+        remainingSeconds: pomodoroSession.remainingSeconds,
+      })
+    );
+  } catch (err) {
+    console.warn("Impossible d'enregistrer la session Pomodoro :", err);
+  }
+}
+
+function readPersistedPomodoroSession() {
+  try {
+    const raw = localStorage.getItem(POMODORO_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function computeRemainingSeconds() {
+  if (!pomodoroSession) return 0;
+  if (pomodoroSession.endAt == null) return pomodoroSession.remainingSeconds;
+  return Math.max(0, Math.round((pomodoroSession.endAt - Date.now()) / 1000));
+}
+
+function startPomodoro(taskId) {
+  ensureNotificationPermission(); // doit être appelé depuis un geste utilisateur
+  pomodoroSession = {
+    taskId,
+    endAt: Date.now() + POMODORO_DURATION_SECONDS * 1000,
+    remainingSeconds: POMODORO_DURATION_SECONDS,
+    intervalId: null,
+  };
+  persistPomodoroSession();
+  openPomodoroOverlay();
+  runPomodoroInterval();
+}
+
+// Rouvre l'écran pour la session existante d'une quête : relance le décompte
+// si elle était en pause, ou se contente de l'afficher si elle tourne déjà
+// (ouverte depuis une autre fenêtre) ou si elle est terminée.
+function resumePomodoro(taskId) {
+  if (!pomodoroSession || pomodoroSession.taskId !== taskId) return;
+
+  if (pomodoroSession.endAt == null && pomodoroSession.remainingSeconds <= 0) {
+    openPomodoroOverlay();
+    showPomodoroCompletedState();
+    return;
+  }
+  if (pomodoroSession.endAt == null) {
+    pomodoroSession.endAt = Date.now() + pomodoroSession.remainingSeconds * 1000;
+    persistPomodoroSession();
+  }
+  openPomodoroOverlay();
+  runPomodoroInterval();
+}
+
+function runPomodoroInterval() {
+  updatePomodoroDisplay();
+  pomodoroSession.intervalId = setInterval(tickPomodoro, 1000);
+}
+
+function tickPomodoro() {
+  const remaining = computeRemainingSeconds();
+  if (remaining > 0) {
+    pomodoroSession.remainingSeconds = remaining;
+    updatePomodoroDisplay();
+    return;
+  }
+
+  clearInterval(pomodoroSession.intervalId);
+  pomodoroSession.intervalId = null;
+
+  // Si une autre fenêtre ouverte sur la même session a déjà géré la fin
+  // (notification, etc.) une fraction de seconde plus tôt, on s'aligne
+  // simplement dessus au lieu de notifier une seconde fois.
+  const stored = readPersistedPomodoroSession();
+  const alreadyHandledElsewhere = !stored || stored.taskId !== pomodoroSession.taskId || stored.endAt === null;
+  if (alreadyHandledElsewhere) {
+    reflectPomodoroSessionInThisWindow();
+  } else {
+    completePomodoro();
+  }
+}
+
+// Pause "douce" : le décompte est figé (pas seulement masqué) et repris
+// exactement là où il en était via "Reprendre". Depuis la fenêtre détachée,
+// il n'y a pas de liste à retrouver : la fenêtre se ferme simplement.
+function pausePomodoro() {
+  if (!pomodoroSession) return;
+  clearInterval(pomodoroSession.intervalId);
+  pomodoroSession.remainingSeconds = computeRemainingSeconds();
+  pomodoroSession.endAt = null;
+  pomodoroSession.intervalId = null;
+  persistPomodoroSession();
+  closePomodoroOverlay();
+  if (isPomodoroPopout) window.close();
+  else render();
+}
+
+function cancelPomodoroSession() {
+  if (pomodoroSession) clearInterval(pomodoroSession.intervalId);
+  pomodoroSession = null;
+  persistPomodoroSession();
+  closePomodoroOverlay();
+  if (isPomodoroPopout) window.close();
+  else render();
+}
+
+function completePomodoro() {
+  clearInterval(pomodoroSession.intervalId);
+  pomodoroSession.remainingSeconds = 0;
+  pomodoroSession.endAt = null;
+  pomodoroSession.intervalId = null;
+  persistPomodoroSession();
+  sendPomodoroNotification(getPomodoroTask());
+  showPomodoroCompletedState();
+}
+
+function showPomodoroCompletedState() {
+  updatePomodoroDisplay();
+  pomodoroStatusEl.hidden = false;
+  pomodoroPauseBtn.hidden = true;
+}
+
+function getPomodoroTask() {
+  return pomodoroSession ? tasks.find((t) => t.id === pomodoroSession.taskId) ?? null : null;
+}
+
+function updatePomodoroDisplay() {
+  const remaining = pomodoroSession.remainingSeconds;
+  const label = formatPomodoroTime(remaining);
+  pomodoroTimeEl.textContent = label;
+  const elapsedRatio = 1 - remaining / POMODORO_DURATION_SECONDS;
+  pomodoroProgressFill.style.width = `${Math.min(100, Math.max(0, elapsedRatio * 100))}%`;
+  // Rend le décompte visible même si la fenêtre est en arrière-plan/réduite.
+  if (isPomodoroPopout) document.title = `${label} · Pomodoro`;
+}
+
+function openPomodoroOverlay() {
+  const task = getPomodoroTask();
+  pomodoroTaskTitle.textContent = task ? task.text : "";
+  pomodoroStatusEl.hidden = true;
+  pomodoroPauseBtn.hidden = false;
+  pomodoroBackdrop.hidden = false;
+}
+
+function closePomodoroOverlay() {
+  pomodoroBackdrop.hidden = true;
+  if (isPomodoroPopout) document.title = "Livre de Quêtes";
+}
+
+function openPomodoroPopout() {
+  const url = `${location.pathname}?pomodoro=popout`;
+  window.open(url, "pomodoro-popout", "width=380,height=480,menubar=no,toolbar=no,location=no,status=no");
+}
+
+// Appelée quand la session Pomodoro a changé dans une autre fenêtre (via
+// l'évènement "storage"), ou quand cette fenêtre perd la "course" à la fin
+// du décompte (voir tickPomodoro). N'ouvre jamais l'écran de force dans la
+// fenêtre principale si l'utilisateur regardait autre chose ; la fenêtre
+// détachée, elle, n'existe QUE pour l'afficher.
+function reflectPomodoroSessionInThisWindow() {
+  if (pomodoroSession) clearInterval(pomodoroSession.intervalId);
+
+  const stored = readPersistedPomodoroSession();
+  if (!stored) {
+    pomodoroSession = null;
+    closePomodoroOverlay();
+    if (isPomodoroPopout) {
+      window.close();
+      return;
+    }
+    render();
+    return;
+  }
+
+  pomodoroSession = { taskId: stored.taskId, endAt: stored.endAt, remainingSeconds: stored.remainingSeconds, intervalId: null };
+  const shouldDisplay = isPomodoroPopout || !pomodoroBackdrop.hidden;
+
+  if (pomodoroSession.endAt != null) {
+    if (shouldDisplay) {
+      openPomodoroOverlay();
+      runPomodoroInterval();
+    }
+  } else if (pomodoroSession.remainingSeconds > 0) {
+    if (shouldDisplay) closePomodoroOverlay();
+    if (isPomodoroPopout) {
+      window.close();
+      return;
+    }
+  } else if (shouldDisplay) {
+    openPomodoroOverlay();
+    showPomodoroCompletedState();
+  }
+
+  if (!isPomodoroPopout) render();
+}
+
 // ---- Modale d'édition de tâche ----
 
 function populateModalProjectOptions(selectedId) {
@@ -806,15 +1116,11 @@ function getEditingTask() {
   return editingTaskId ? tasks.find((t) => t.id === editingTaskId) : null;
 }
 
-function saveTaskModal() {
-  const task = getEditingTask();
-  if (!task) return;
-
+// Applique les champs du formulaire à la tâche éditée. Ne fait rien si le
+// titre est vide (une tâche sans titre n'a pas de sens).
+function applyTaskModalFields(task) {
   const trimmedTitle = modalTitleInput.value.trim();
-  if (!trimmedTitle) {
-    modalTitleInput.focus();
-    return;
-  }
+  if (!trimmedTitle) return false;
 
   task.text = trimmedTitle;
   task.priority = modalPriorityInput.value;
@@ -822,9 +1128,32 @@ function saveTaskModal() {
   task.description = modalDescInput.value.trim();
   task.projectId = modalProjectInput.value || null;
   task.difficulty = modalDifficultyInput.value || null;
+  return true;
+}
+
+function saveTaskModal() {
+  const task = getEditingTask();
+  if (!task) return;
+
+  if (!applyTaskModalFields(task)) {
+    modalTitleInput.focus();
+    return;
+  }
 
   saveTasks();
   render();
+  closeTaskModal();
+}
+
+// Fermeture "douce" (✕, clic hors de la modale, Échap) : contrairement à
+// "Annuler", elle n'écarte pas silencieusement les modifications en cours —
+// elle les enregistre, comme le fait déjà l'édition des sous-tâches.
+function closeTaskModalKeepingEdits() {
+  const task = getEditingTask();
+  if (task && applyTaskModalFields(task)) {
+    saveTasks();
+    render();
+  }
   closeTaskModal();
 }
 
@@ -1357,21 +1686,40 @@ function getEditingProject() {
   return editingProjectId ? projects.find((p) => p.id === editingProjectId) ?? null : null;
 }
 
+// Applique les champs du formulaire au projet édité. Ne fait rien si le nom
+// est vide (un projet sans nom n'a pas de sens).
+function applyProjectModalFields(project) {
+  const trimmedName = projectModalTitleInput.value.trim();
+  if (!trimmedName) return false;
+
+  project.name = trimmedName;
+  project.description = projectModalDescInput.value.trim();
+  return true;
+}
+
 function saveProjectModal() {
   const project = getEditingProject();
   if (!project) return;
 
-  const trimmedName = projectModalTitleInput.value.trim();
-  if (!trimmedName) {
+  if (!applyProjectModalFields(project)) {
     projectModalTitleInput.focus();
     return;
   }
 
-  project.name = trimmedName;
-  project.description = projectModalDescInput.value.trim();
-
   saveProjects();
   render();
+  closeProjectModal();
+}
+
+// Fermeture "douce" (✕, clic hors de la modale, Échap) : contrairement à
+// "Annuler", elle enregistre les modifications en cours plutôt que de les
+// écarter silencieusement.
+function closeProjectModalKeepingEdits() {
+  const project = getEditingProject();
+  if (project && applyProjectModalFields(project)) {
+    saveProjects();
+    render();
+  }
   closeProjectModal();
 }
 
@@ -1499,7 +1847,7 @@ modalDeleteBtn.addEventListener("click", () => {
   });
 });
 modalCancelBtn.addEventListener("click", closeTaskModal);
-modalCloseBtn.addEventListener("click", closeTaskModal);
+modalCloseBtn.addEventListener("click", closeTaskModalKeepingEdits);
 
 projectModalSaveBtn.addEventListener("click", saveProjectModal);
 projectModalDeleteBtn.addEventListener("click", () => {
@@ -1512,10 +1860,10 @@ projectModalDeleteBtn.addEventListener("click", () => {
   });
 });
 projectModalCancelBtn.addEventListener("click", closeProjectModal);
-projectModalCloseBtn.addEventListener("click", closeProjectModal);
+projectModalCloseBtn.addEventListener("click", closeProjectModalKeepingEdits);
 
 projectModalBackdrop.addEventListener("click", (e) => {
-  if (e.target === projectModalBackdrop) closeProjectModal();
+  if (e.target === projectModalBackdrop) closeProjectModalKeepingEdits();
 });
 
 projectModalTitleInput.addEventListener("keydown", (e) => {
@@ -1536,8 +1884,23 @@ confirmBackdrop.addEventListener("click", (e) => {
   if (e.target === confirmBackdrop) closeConfirmDelete();
 });
 
+pomodoroPauseBtn.addEventListener("click", pausePomodoro);
+pomodoroCloseBtn.addEventListener("click", cancelPomodoroSession);
+pomodoroPopoutBtn.addEventListener("click", openPomodoroPopout);
+
+// Répercute dans cette fenêtre tout changement de la session Pomodoro fait
+// depuis une autre fenêtre du même site (ex. la fenêtre détachée).
+window.addEventListener("storage", (e) => {
+  if (e.key === POMODORO_STORAGE_KEY) reflectPomodoroSessionInThisWindow();
+});
+pomodoroBackdrop.addEventListener("click", (e) => {
+  if (e.target !== pomodoroBackdrop) return;
+  if (pomodoroStatusEl.hidden) pausePomodoro();
+  else cancelPomodoroSession();
+});
+
 modalBackdrop.addEventListener("click", (e) => {
-  if (e.target === modalBackdrop) closeTaskModal();
+  if (e.target === modalBackdrop) closeTaskModalKeepingEdits();
 });
 
 modalTitleInput.addEventListener("keydown", (e) => {
@@ -1553,10 +1916,13 @@ document.addEventListener("keydown", (e) => {
     closeConfirmDelete();
   } else if (!settingsBackdrop.hidden) {
     closeSettingsModal();
+  } else if (!pomodoroBackdrop.hidden) {
+    if (pomodoroStatusEl.hidden) pausePomodoro();
+    else cancelPomodoroSession();
   } else if (!modalBackdrop.hidden) {
-    closeTaskModal();
+    closeTaskModalKeepingEdits();
   } else if (!projectModalBackdrop.hidden) {
-    closeProjectModal();
+    closeProjectModalKeepingEdits();
   }
 });
 
@@ -1595,6 +1961,15 @@ calTodayBtn.addEventListener("click", () => {
 
 // ---- Init ----
 
-setupKanbanDragTargets();
-applyTheme(getTheme()); // synchronise l'icône avec le thème déjà appliqué (script d'amorçage dans <head>)
-switchView(currentView); // synchronise l'UI et déclenche le premier rendu
+if (isPomodoroPopout) {
+  // Fenêtre détachée : rien d'autre que l'écran Pomodoro (voir .pomodoro-popout-mode
+  // dans style.css). Si la session n'existe plus (terminée/annulée entre-temps
+  // ailleurs), reflectPomodoroSessionInThisWindow() referme direct la fenêtre.
+  document.body.classList.add("pomodoro-popout-mode");
+  applyTheme(getTheme());
+  reflectPomodoroSessionInThisWindow();
+} else {
+  setupKanbanDragTargets();
+  applyTheme(getTheme()); // synchronise l'icône avec le thème déjà appliqué (script d'amorçage dans <head>)
+  switchView(currentView); // synchronise l'UI et déclenche le premier rendu
+}

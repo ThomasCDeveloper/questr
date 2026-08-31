@@ -1708,15 +1708,113 @@ body {
   gap: 10px;
 }
 
-/* ---------- Footer ---------- */
+/* ---------- Espacement bas de page ---------- */
+/* Anciennement porté par un <footer> vide ; conservé ici pour garder de l'air
+   sous le dernier panneau. */
 
-.page-footer {
-  position: relative;
-  z-index: 1;
+main {
+  padding-bottom: 40px;
+}
+
+/* ---------- Toast (retour d'erreur) ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 50;
+  max-width: min(90vw, 420px);
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 14px;
   text-align: center;
-  padding: 0 24px 40px;
-  color: var(--ink-text-faint);
-  font-size: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.toast[hidden] {
+  display: none;
+}
+
+/* ---------- Bouton Pomodoro (vue Liste) ---------- */
+/* Même traitement visuel que .filter-btn.active, dans les deux états
+   ("Pomodoro" comme "Reprendre") : un seul style, pas de variante muette. */
+
+.pomodoro-btn {
+  flex: none;
+  background: var(--parchment-500);
+  border: 1px solid var(--bronze-700);
+  color: var(--bronze-900);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: calc(var(--radius-btn) - 2px);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.2s ease;
+}
+
+.pomodoro-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* ---------- Écran Pomodoro ---------- */
+
+.pomodoro-panel {
+  max-width: 420px;
+  align-items: center;
+  text-align: center;
+  padding: 48px 32px;
+}
+
+.pomodoro-task-title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-body);
+  word-break: break-word;
+}
+
+.pomodoro-progress-bar {
+  width: 100%;
+  height: 8px;
+  margin: 22px 0 0;
+}
+
+.pomodoro-time-label {
+  margin: 18px 0 0;
+}
+
+.pomodoro-time {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 700;
+  color: var(--text-heading);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pomodoro-status {
+  margin: 0;
+  font-size: 15px;
+  color: var(--accent-text);
+}
+
+.pomodoro-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Fenêtre détachée (pop-out) : rien d'autre à l'écran que le Pomodoro. */
+.pomodoro-popout-mode .topbar,
+.pomodoro-popout-mode main {
+  display: none;
 }
 
 /* ---------- Responsive ---------- */

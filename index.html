@@ -241,10 +241,6 @@
 
 </main>
 
-<footer class="page-footer">
-
-</footer>
-
 <!-- ===== Modale d'édition de tâche ===== -->
 <div class="modal-backdrop" id="task-modal-backdrop" hidden>
   <div class="modal panel" id="task-modal" role="dialog" aria-modal="true" aria-label="Modifier la tâche">
@@ -404,6 +400,31 @@
     </div>
   </div>
 </div>
+
+<!-- ===== Écran Pomodoro ===== -->
+<div class="modal-backdrop pomodoro-backdrop" id="pomodoro-backdrop" hidden>
+  <div class="modal panel pomodoro-panel" role="dialog" aria-modal="true" aria-label="Session Pomodoro">
+    <p class="eyebrow">Pomodoro</p>
+    <p class="pomodoro-task-title" id="pomodoro-task-title"></p>
+
+    <div class="subtask-progress-bar pomodoro-progress-bar" id="pomodoro-progress-bar">
+      <div class="subtask-progress-fill" id="pomodoro-progress-fill"></div>
+    </div>
+
+    <p class="eyebrow pomodoro-time-label">Temps restant</p>
+    <p class="pomodoro-time" id="pomodoro-time">25:00</p>
+    <p class="pomodoro-status" id="pomodoro-status" hidden>Session terminée !</p>
+
+    <div class="pomodoro-actions">
+      <button type="button" id="pomodoro-popout-btn" class="btn-ghost">Ouvrir dans une fenêtre</button>
+      <button type="button" id="pomodoro-pause-btn" class="btn-ghost">Mettre en pause</button>
+      <button type="button" id="pomodoro-close-btn" class="btn-primary"><span>Revenir à la liste</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Toast (retour d'erreur, ex : échec d'enregistrement) ===== -->
+<div class="toast" id="toast" role="alert" aria-live="assertive" hidden></div>
 
 <script src="script.js"></script>
 </body>
