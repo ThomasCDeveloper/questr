@@ -49,7 +49,7 @@ let calendarCursor = { year: today.getFullYear(), month: today.getMonth() };
 let selectedDate = toDateStr(today);
 
 // ---- DOM refs ----
-const quickAddPanel = document.getElementById("quick-add-panel");
+const topActionsRow = document.getElementById("top-actions-row");
 const form = document.getElementById("task-form");
 const input = document.getElementById("task-input");
 const themeToggleBtn = document.getElementById("theme-toggle");
@@ -166,10 +166,14 @@ let pendingConfirmAction = null;
 const toastEl = document.getElementById("toast");
 let toastTimer = null;
 
-// Écran Pomodoro
+// Écran Pomodoro — minuteur de concentration global (indépendant des
+// quêtes), lancé depuis le bouton à droite de la barre d'ajout rapide (deux
+// exemplaires du même bouton : un global, un dans la vue Projets, qui a son
+// propre champ de création et masque le premier).
 const POMODORO_DURATION_SECONDS = 25 * 60;
+const pomodoroLaunchBtn = document.getElementById("pomodoro-launch-btn");
+const pomodoroLaunchBtnProject = document.getElementById("pomodoro-launch-btn-project");
 const pomodoroBackdrop = document.getElementById("pomodoro-backdrop");
-const pomodoroTaskTitle = document.getElementById("pomodoro-task-title");
 const pomodoroProgressFill = document.getElementById("pomodoro-progress-fill");
 const pomodoroTimeEl = document.getElementById("pomodoro-time");
 const pomodoroStatusEl = document.getElementById("pomodoro-status");
@@ -182,9 +186,9 @@ pomodoroPopoutBtn.hidden = isPomodoroPopout; // pas de pop-out depuis un pop-out
 let pomodoroPipWindow = null;
 // Une seule session à la fois, mais persistée dans localStorage (voir
 // persistPomodoroSession) pour rester visible et pilotable depuis la fenêtre
-// détachée : { taskId, endAt, remainingSeconds, intervalId }. `endAt` (une
-// échéance absolue) vaut `null` tant que la session est en pause (ou
-// terminée) ; `intervalId` n'existe que dans cette fenêtre, jamais persisté.
+// détachée : { endAt, remainingSeconds, intervalId }. `endAt` (une échéance
+// absolue) vaut `null` tant que la session est en pause (ou terminée) ;
+// `intervalId` n'existe que dans cette fenêtre, jamais persisté.
 let pomodoroSession = null;
 
 let editingTaskId = null;
@@ -596,8 +600,9 @@ function switchView(view) {
   Object.entries(viewSections).forEach(([name, section]) => {
     section.hidden = name !== view;
   });
-  // La vue Projets a déjà son propre champ de création de quête par projet.
-  quickAddPanel.hidden = view === "project";
+  // La vue Projets a déjà son propre champ de création de quête par projet,
+  // et son propre bouton Pomodoro.
+  topActionsRow.hidden = view === "project";
   render();
 }
 
@@ -722,12 +727,12 @@ function renderListView() {
     for (const group of groups) {
       list.appendChild(renderGroupSeparator(group.label));
       for (const task of sortTasks(group.tasks, "recent")) {
-        list.appendChild(renderTaskItem(task, { pomodoro: true }));
+        list.appendChild(renderTaskItem(task));
       }
     }
   } else {
     for (const task of sortTasks(filtered, "recent")) {
-      list.appendChild(renderTaskItem(task, { pomodoro: true }));
+      list.appendChild(renderTaskItem(task));
     }
   }
 
@@ -746,7 +751,7 @@ function renderGroupSeparator(label) {
   return li;
 }
 
-function renderTaskItem(task, { draggable = false, pomodoro = false } = {}) {
+function renderTaskItem(task, { draggable = false } = {}) {
   const li = document.createElement("li");
   li.className = "task-item" + (task.status === "done" ? " done" : "");
   li.dataset.id = task.id;
@@ -789,33 +794,7 @@ function renderTaskItem(task, { draggable = false, pomodoro = false } = {}) {
   li.appendChild(checkBtn);
   li.appendChild(body);
 
-  if (pomodoro) {
-    li.appendChild(renderPomodoroButton(task));
-  }
-
   return li;
-}
-
-// Bouton "Pomodoro" / "Reprendre", aligné à droite de la quête (vue Liste
-// uniquement — voir l'appel dans renderListView).
-function renderPomodoroButton(task) {
-  // Une session existe déjà pour cette quête (en cours, en pause, ou
-  // terminée mais pas encore refermée) : on la rejoint plutôt que d'en
-  // démarrer une nouvelle.
-  const hasSession = pomodoroSession && pomodoroSession.taskId === task.id;
-
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "pomodoro-btn";
-  btn.textContent = hasSession ? "Reprendre" : "Pomodoro";
-  btn.setAttribute("aria-label", hasSession ? "Reprendre la session Pomodoro" : "Démarrer une session Pomodoro (25 min)");
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation(); // n'ouvre pas la modale d'édition de la quête
-    if (hasSession) resumePomodoro(task.id);
-    else startPomodoro(task.id);
-  });
-
-  return btn;
 }
 
 function renderTaskTitle(textEl, task) {
@@ -906,11 +885,12 @@ function buildMetaRow(task) {
 }
 
 // ---- Pomodoro ----
-// Écran plein cadre, accessible depuis la vue Liste. Une pause fige le
-// décompte et revient à la liste (le bouton "Pomodoro" de la quête devient
-// "Reprendre") ; "Revenir à la liste" abandonne la session. À la fin du
-// décompte, une notification navigateur est envoyée. Peut aussi s'ouvrir
-// dans sa propre fenêtre (pop-out), synchronisée via localStorage.
+// Minuteur de concentration global, indépendant des quêtes : un seul bouton
+// (à droite de la barre d'ajout rapide) ouvre directement le décompte dans
+// une fenêtre détachée (pop-out), synchronisée via localStorage. Une pause
+// fige le décompte (le bouton devient "Reprendre") ; "Revenir à la liste"
+// abandonne la session. À la fin du décompte, une notification navigateur
+// est envoyée.
 
 function formatPomodoroTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -925,7 +905,7 @@ function ensureNotificationPermission() {
   }
 }
 
-function sendPomodoroNotification(task) {
+function sendPomodoroNotification() {
   if (!("Notification" in window)) return; // API absente (navigateur trop ancien, etc.)
   if (Notification.permission !== "granted") {
     // Échec silencieux sinon : l'utilisateur n'a aucun moyen de savoir que
@@ -936,9 +916,7 @@ function sendPomodoroNotification(task) {
     return;
   }
   try {
-    new Notification("Pomodoro terminé !", {
-      body: task ? `« ${task.text} » — 25 minutes écoulées.` : "25 minutes écoulées.",
-    });
+    new Notification("Pomodoro terminé !", { body: "25 minutes écoulées." });
   } catch (err) {
     console.warn("Impossible d'afficher la notification :", err);
     showToast("Impossible d'afficher la notification (voir la console).");
@@ -959,7 +937,6 @@ function persistPomodoroSession() {
     localStorage.setItem(
       POMODORO_STORAGE_KEY,
       JSON.stringify({
-        taskId: pomodoroSession.taskId,
         endAt: pomodoroSession.endAt,
         remainingSeconds: pomodoroSession.remainingSeconds,
       })
@@ -984,10 +961,9 @@ function computeRemainingSeconds() {
   return Math.max(0, Math.round((pomodoroSession.endAt - Date.now()) / 1000));
 }
 
-function startPomodoro(taskId) {
+function startPomodoro() {
   ensureNotificationPermission(); // doit être appelé depuis un geste utilisateur
   pomodoroSession = {
-    taskId,
     endAt: Date.now() + POMODORO_DURATION_SECONDS * 1000,
     remainingSeconds: POMODORO_DURATION_SECONDS,
     intervalId: null,
@@ -997,23 +973,30 @@ function startPomodoro(taskId) {
   runPomodoroInterval();
 }
 
-// Rouvre l'écran pour la session existante d'une quête : relance le décompte
-// si elle était en pause, ou se contente de l'afficher si elle tourne déjà
-// (ouverte depuis une autre fenêtre) ou si elle est terminée.
-function resumePomodoro(taskId) {
-  if (!pomodoroSession || pomodoroSession.taskId !== taskId) return;
-
-  if (pomodoroSession.endAt == null && pomodoroSession.remainingSeconds <= 0) {
-    openPomodoroOverlay();
-    showPomodoroCompletedState();
-    return;
-  }
-  if (pomodoroSession.endAt == null) {
-    pomodoroSession.endAt = Date.now() + pomodoroSession.remainingSeconds * 1000;
-    persistPomodoroSession();
-  }
+// Rouvre l'écran pour la session en cours, SANS changer son état : une
+// session en pause reste en pause (affichée avec le bouton "Reprendre") —
+// la reprendre ne se fait plus que depuis ce bouton, jamais depuis la page
+// principale.
+function reopenPomodoro() {
+  if (!pomodoroSession) return;
   openPomodoroOverlay();
-  runPomodoroInterval();
+  if (pomodoroSession.endAt != null) {
+    runPomodoroInterval();
+  } else if (pomodoroSession.remainingSeconds <= 0) {
+    showPomodoroCompletedState();
+  }
+}
+
+// Bouton unique (à droite de la barre d'ajout rapide) : démarre une session,
+// ou rouvre celle déjà en cours/pause, toujours dans l'écran détaché — jamais
+// dans la page principale (startPomodoro/reopenPomodoro affichent l'écran
+// pour initialiser son état, mais on le masque aussitôt ici ; aucun repaint
+// n'a lieu entre les deux, donc rien n'est jamais visible dans cette page).
+function launchPomodoro() {
+  if (pomodoroSession) reopenPomodoro();
+  else startPomodoro();
+  pomodoroBackdrop.hidden = true;
+  openPomodoroPopout();
 }
 
 function runPomodoroInterval() {
@@ -1036,7 +1019,7 @@ function tickPomodoro() {
   // (notification, etc.) une fraction de seconde plus tôt, on s'aligne
   // simplement dessus au lieu de notifier une seconde fois.
   const stored = readPersistedPomodoroSession();
-  const alreadyHandledElsewhere = !stored || stored.taskId !== pomodoroSession.taskId || stored.endAt === null;
+  const alreadyHandledElsewhere = !stored || stored.endAt === null;
   if (alreadyHandledElsewhere) {
     reflectPomodoroSessionInThisWindow();
   } else {
@@ -1044,19 +1027,36 @@ function tickPomodoro() {
   }
 }
 
-// Pause "douce" : le décompte est figé (pas seulement masqué) et repris
-// exactement là où il en était via "Reprendre". Depuis la fenêtre détachée,
-// il n'y a pas de liste à retrouver : la fenêtre se ferme simplement.
+// Pause/reprise en place : le décompte est figé (pas seulement masqué) sans
+// jamais fermer ni déplacer la fenêtre — tout se passe dans l'écran Pomodoro
+// lui-même, qu'il soit détaché ou non.
 function pausePomodoro() {
-  if (!pomodoroSession) return;
+  if (!pomodoroSession || pomodoroSession.endAt == null) return;
   clearInterval(pomodoroSession.intervalId);
   pomodoroSession.remainingSeconds = computeRemainingSeconds();
   pomodoroSession.endAt = null;
   pomodoroSession.intervalId = null;
   persistPomodoroSession();
-  closePomodoroOverlay();
-  if (isPomodoroPopout) window.close();
-  else render();
+  updatePomodoroPauseBtn();
+}
+
+function continuePomodoro() {
+  if (!pomodoroSession || pomodoroSession.endAt != null) return;
+  pomodoroSession.endAt = Date.now() + pomodoroSession.remainingSeconds * 1000;
+  persistPomodoroSession();
+  updatePomodoroPauseBtn();
+  runPomodoroInterval();
+}
+
+function togglePomodoroPause() {
+  if (!pomodoroSession) return;
+  if (pomodoroSession.endAt != null) pausePomodoro();
+  else continuePomodoro();
+}
+
+function updatePomodoroPauseBtn() {
+  const isPaused = Boolean(pomodoroSession) && pomodoroSession.endAt == null && pomodoroSession.remainingSeconds > 0;
+  pomodoroPauseBtn.textContent = isPaused ? "Reprendre" : "Mettre en pause";
 }
 
 function cancelPomodoroSession() {
@@ -1074,7 +1074,7 @@ function completePomodoro() {
   pomodoroSession.endAt = null;
   pomodoroSession.intervalId = null;
   persistPomodoroSession();
-  sendPomodoroNotification(getPomodoroTask());
+  sendPomodoroNotification();
   showPomodoroCompletedState();
 }
 
@@ -1082,10 +1082,6 @@ function showPomodoroCompletedState() {
   updatePomodoroDisplay();
   pomodoroStatusEl.hidden = false;
   pomodoroPauseBtn.hidden = true;
-}
-
-function getPomodoroTask() {
-  return pomodoroSession ? tasks.find((t) => t.id === pomodoroSession.taskId) ?? null : null;
 }
 
 function updatePomodoroDisplay() {
@@ -1099,10 +1095,10 @@ function updatePomodoroDisplay() {
 }
 
 function openPomodoroOverlay() {
-  const task = getPomodoroTask();
-  pomodoroTaskTitle.textContent = task ? task.text : "";
   pomodoroStatusEl.hidden = true;
   pomodoroPauseBtn.hidden = false;
+  updatePomodoroPauseBtn();
+  updatePomodoroDisplay();
   pomodoroBackdrop.hidden = false;
 }
 
@@ -1152,6 +1148,7 @@ async function openPomodoroPip() {
     pip.document.head.appendChild(link.cloneNode());
   });
 
+  pip.document.body.classList.add("pomodoro-popout-mode"); // écran plein, sans cadre de modale
   const backdropHome = pomodoroBackdrop.parentNode;
   pip.document.body.appendChild(pomodoroBackdrop);
   pomodoroBackdrop.hidden = false; // cette fenêtre n'existe que pour l'afficher
@@ -1160,8 +1157,14 @@ async function openPomodoroPip() {
   pip.addEventListener(
     "pagehide",
     () => {
-      backdropHome.appendChild(pomodoroBackdrop); // rend l'écran à la fenêtre principale
-      pomodoroPipWindow = null;
+      pomodoroPipWindow = null; // évite un ré-appel de .close() depuis cancelPomodoroSession()
+      // Fermer via la croix du pop-out doit se comporter exactement comme
+      // "Revenir à la liste" : jamais de retour silencieux du chrono dans la
+      // page principale. (Si la session a déjà été annulée depuis le
+      // pop-out — "Revenir à la liste" a lui-même déclenché cette fermeture
+      // — il n'y a rien de plus à faire ici.)
+      if (pomodoroSession) cancelPomodoroSession();
+      backdropHome.appendChild(pomodoroBackdrop); // remet le nœud dans la page principale, masqué
       pomodoroPopoutBtn.hidden = isPomodoroPopout;
     },
     { once: true }
@@ -1188,23 +1191,19 @@ function reflectPomodoroSessionInThisWindow() {
     return;
   }
 
-  pomodoroSession = { taskId: stored.taskId, endAt: stored.endAt, remainingSeconds: stored.remainingSeconds, intervalId: null };
+  pomodoroSession = { endAt: stored.endAt, remainingSeconds: stored.remainingSeconds, intervalId: null };
   const shouldDisplay = isPomodoroPopout || !pomodoroBackdrop.hidden;
 
-  if (pomodoroSession.endAt != null) {
-    if (shouldDisplay) {
+  if (shouldDisplay) {
+    if (pomodoroSession.endAt != null) {
       openPomodoroOverlay();
       runPomodoroInterval();
+    } else if (pomodoroSession.remainingSeconds > 0) {
+      openPomodoroOverlay(); // affiche l'état "en pause" (bouton "Reprendre"), en place
+    } else {
+      openPomodoroOverlay();
+      showPomodoroCompletedState();
     }
-  } else if (pomodoroSession.remainingSeconds > 0) {
-    if (shouldDisplay) closePomodoroOverlay();
-    if (isPomodoroPopout) {
-      window.close();
-      return;
-    }
-  } else if (shouldDisplay) {
-    openPomodoroOverlay();
-    showPomodoroCompletedState();
   }
 
   if (!isPomodoroPopout) render();
@@ -2103,7 +2102,9 @@ confirmBackdrop.addEventListener("click", (e) => {
   if (e.target === confirmBackdrop) closeConfirmDelete();
 });
 
-pomodoroPauseBtn.addEventListener("click", pausePomodoro);
+pomodoroLaunchBtn.addEventListener("click", launchPomodoro);
+pomodoroLaunchBtnProject.addEventListener("click", launchPomodoro);
+pomodoroPauseBtn.addEventListener("click", togglePomodoroPause);
 pomodoroCloseBtn.addEventListener("click", cancelPomodoroSession);
 pomodoroPopoutBtn.addEventListener("click", openPomodoroPopout);
 
@@ -2114,7 +2115,7 @@ window.addEventListener("storage", (e) => {
 });
 pomodoroBackdrop.addEventListener("click", (e) => {
   if (e.target !== pomodoroBackdrop) return;
-  if (pomodoroStatusEl.hidden) pausePomodoro();
+  if (pomodoroStatusEl.hidden) togglePomodoroPause();
   else cancelPomodoroSession();
 });
 
@@ -2136,7 +2137,7 @@ document.addEventListener("keydown", (e) => {
   } else if (!settingsBackdrop.hidden) {
     closeSettingsModal();
   } else if (!pomodoroBackdrop.hidden) {
-    if (pomodoroStatusEl.hidden) pausePomodoro();
+    if (pomodoroStatusEl.hidden) togglePomodoroPause();
     else cancelPomodoroSession();
   } else if (!modalBackdrop.hidden) {
     closeTaskModalKeepingEdits();

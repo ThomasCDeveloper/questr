@@ -67,19 +67,25 @@
 
 <main class="page">
 
-  <section class="panel form-panel" id="quick-add-panel">
-    <form id="task-form" autocomplete="off">
-      <input
-        type="text"
-        id="task-input"
-        placeholder="Décrire une nouvelle quête…"
-        maxlength="140"
-      >
-      <button type="submit" class="btn-primary">
-        <span>+ Ajouter</span>
-      </button>
-    </form>
-  </section>
+  <div class="top-actions-row" id="top-actions-row">
+    <section class="panel form-panel" id="quick-add-panel">
+      <form id="task-form" autocomplete="off">
+        <input
+          type="text"
+          id="task-input"
+          placeholder="Décrire une nouvelle quête…"
+          maxlength="140"
+        >
+        <button type="submit" class="btn-primary">
+          <span>+ Ajouter</span>
+        </button>
+      </form>
+    </section>
+
+    <div class="panel pomodoro-launch-panel">
+      <button type="button" id="pomodoro-launch-btn" class="pomodoro-btn pomodoro-launch-btn">Pomodoro</button>
+    </div>
+  </div>
 
   <!-- ===== Vue Liste ===== -->
   <section class="view" id="view-list">
@@ -176,19 +182,25 @@
 
   <!-- ===== Vue Projets ===== -->
   <section class="view" id="view-project" hidden>
-    <section class="panel form-panel">
-      <form id="project-form" autocomplete="off">
-        <input
-          type="text"
-          id="project-input"
-          placeholder="Nom du nouveau projet…"
-          maxlength="80"
-        >
-        <button type="submit" class="btn-primary">
-          <span>+ Créer un projet</span>
-        </button>
-      </form>
-    </section>
+    <div class="top-actions-row">
+      <section class="panel form-panel">
+        <form id="project-form" autocomplete="off">
+          <input
+            type="text"
+            id="project-input"
+            placeholder="Nom du nouveau projet…"
+            maxlength="80"
+          >
+          <button type="submit" class="btn-primary">
+            <span>+ Ajouter</span>
+          </button>
+        </form>
+      </section>
+
+      <div class="panel pomodoro-launch-panel">
+        <button type="button" id="pomodoro-launch-btn-project" class="pomodoro-btn pomodoro-launch-btn">Pomodoro</button>
+      </div>
+    </div>
 
     <div id="project-list" class="project-list"></div>
 
@@ -420,7 +432,6 @@
 <div class="modal-backdrop pomodoro-backdrop" id="pomodoro-backdrop" hidden>
   <div class="modal panel pomodoro-panel" role="dialog" aria-modal="true" aria-label="Session Pomodoro">
     <p class="eyebrow">Pomodoro</p>
-    <p class="pomodoro-task-title" id="pomodoro-task-title"></p>
 
     <div class="subtask-progress-bar pomodoro-progress-bar" id="pomodoro-progress-bar">
       <div class="subtask-progress-fill" id="pomodoro-progress-fill"></div>
