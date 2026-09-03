@@ -7,6 +7,9 @@
   /* Fonds */
   --bg-deepest: #0e1015;
   --bg-base: #131217;
+  --bg-page:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(211, 183, 136, 0.08), transparent 60%),
+    var(--bg-base);
   --bg-raised: #16151a;
   --bg-card: #1c1b21;
   --bg-card-hover: #221f27;
@@ -113,9 +116,7 @@ html, body {
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(211, 183, 136, 0.08), transparent 60%),
-    var(--bg-base);
+  background: var(--bg-page);
   color: var(--ink-text); /* couleur par défaut : le fond de page reste sombre dans les deux thèmes */
   font-family: var(--font-body);
   line-height: 1.5;
@@ -135,7 +136,11 @@ body {
 
 .topbar {
   position: relative;
-  z-index: 1;
+  /* Plus haut que .page (z-index:1, mais après .topbar dans le DOM donc
+     gagnant à égalité) et que .nav-backdrop (80) : sinon le tiroir #view-nav,
+     imbriqué ici, resterait piégé dans ce contexte d'empilement et
+     apparaîtrait sous le contenu principal. Reste sous les modales (100+). */
+  z-index: 95;
   background: linear-gradient(180deg, var(--bg-deepest), var(--ink-bg-raised));
   border-bottom: 1px solid var(--ink-border-soft);
   box-shadow: 0 1px 0 rgba(0,0,0,0.6), inset 0 -1px 12px rgba(0,0,0,0.3);
@@ -220,19 +225,46 @@ body {
 }
 
 /* ---------- Nav (vues) ---------- */
+/* Sous 640px (mobile) : tiroir latéral fixe, révélé par le bouton hamburger
+   et fermé par le fond semi-transparent, Échap, ou la sélection d'une vue.
+   À partir de 640px : ligne de pastilles inline dans la barre du haut,
+   comme avant — le hamburger disparaît. */
+
+.nav-toggle {
+  display: flex;
+}
 
 .view-nav {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 2px;
-  order: 3;
-  flex-basis: 100%;
-  justify-content: center;
-  background: var(--bg-deepest);
-  border: 1px solid var(--ink-border-soft);
-  border-radius: var(--radius-btn);
-  padding: 4px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 220px;
+  max-width: 78vw;
+  padding: 76px 12px 20px;
+  background: var(--bg-page);
+  border: none;
+  border-left: 1px solid var(--ink-border);
+  border-radius: 0;
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+  overflow-y: auto;
+}
+
+.view-nav.open {
+  transform: translateX(0);
+}
+
+.nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .view-link {
@@ -244,8 +276,9 @@ body {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-align: left;
   color: var(--ink-text-muted);
-  padding: 8px 13px;
+  padding: 12px 14px;
   border-radius: calc(var(--radius-btn) - 2px);
   transition: color 0.2s, background 0.2s;
 }
@@ -261,10 +294,78 @@ body {
   box-shadow: 0 2px 3px rgba(160, 114, 42, 0.5);
 }
 
+/* Paramètres/thème, imbriqués dans le tiroir : épinglés en bas sur mobile,
+   séparés par une ligne (voir aussi le reset desktop plus bas). */
+.view-nav-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink-border-soft);
+}
+
+.view-nav .nav-pomodoro-btn {
+  display: block;
+  width: 100%;
+}
+
+.view-nav .topbar-actions {
+  margin-top: 0;
+  padding-top: 10px;
+  border-top: none;
+}
+
 @media (min-width: 640px) {
+  .nav-toggle {
+    display: none;
+  }
+
   .view-nav {
+    position: static;
+    z-index: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
     order: 0;
-    flex-basis: auto;
+    width: auto;
+    max-width: none;
+    padding: 4px;
+    background: var(--bg-deepest);
+    border-left: none;
+    border: 1px solid var(--ink-border-soft);
+    border-radius: var(--radius-btn);
+    transform: none;
+    transition: none;
+    overflow-y: visible;
+  }
+
+  .view-link {
+    text-align: center;
+    padding: 8px 13px;
+  }
+
+  /* Repoussé à l'extrémité de la même rangée que les pastilles de vues,
+     comme avant que paramètres/thème ne rejoignent le tiroir sur mobile. */
+  .view-nav-footer {
+    display: flex;
+    align-items: center;
+    margin-top: 0;
+    margin-left: auto;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .view-nav .nav-pomodoro-btn {
+    display: none;
+  }
+
+  .view-nav .topbar-actions {
+    margin-top: 0;
+    margin-left: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .nav-backdrop {
+    display: none;
   }
 }
 
@@ -368,6 +469,13 @@ body {
   align-items: center;
   justify-content: center;
   padding: 18px 22px;
+}
+
+@media (max-width: 639px) {
+  .top-actions-row .pomodoro-launch-panel,
+  #view-project .pomodoro-launch-panel {
+    display: none;
+  }
 }
 
 /* ---------- Form ---------- */
@@ -1952,6 +2060,31 @@ main {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .pomodoro-backdrop {
+    padding: 0;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .pomodoro-backdrop .pomodoro-panel {
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .pomodoro-backdrop #pomodoro-popout-btn {
+    display: none;
+  }
+
+  .pomodoro-time {
+    font-size: 52px;
+  }
 }
 
 /* Fenêtre détachée (pop-out) : rien d'autre à l'écran que le Pomodoro, sans

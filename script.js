@@ -54,6 +54,8 @@ const form = document.getElementById("task-form");
 const input = document.getElementById("task-input");
 const themeToggleBtn = document.getElementById("theme-toggle");
 
+const navToggleBtn = document.getElementById("nav-toggle");
+const navBackdrop = document.getElementById("nav-backdrop");
 const viewNav = document.getElementById("view-nav");
 const viewSections = {
   list: document.getElementById("view-list"),
@@ -173,6 +175,7 @@ let toastTimer = null;
 const POMODORO_DURATION_SECONDS = 25 * 60;
 const pomodoroLaunchBtn = document.getElementById("pomodoro-launch-btn");
 const pomodoroLaunchBtnProject = document.getElementById("pomodoro-launch-btn-project");
+const pomodoroLaunchBtnNav = document.getElementById("pomodoro-launch-btn-nav");
 const pomodoroBackdrop = document.getElementById("pomodoro-backdrop");
 const pomodoroProgressFill = document.getElementById("pomodoro-progress-fill");
 const pomodoroTimeEl = document.getElementById("pomodoro-time");
@@ -590,6 +593,29 @@ function setFilter(filter) {
   render();
 }
 
+// ---- Menu des vues (tiroir latéral sous 640px) ----
+
+function isMobileLayout() {
+  return window.matchMedia("(max-width: 639px)").matches;
+}
+
+function openNavDrawer() {
+  viewNav.classList.add("open");
+  navBackdrop.hidden = false;
+  navToggleBtn.setAttribute("aria-expanded", "true");
+}
+
+function closeNavDrawer() {
+  viewNav.classList.remove("open");
+  navBackdrop.hidden = true;
+  navToggleBtn.setAttribute("aria-expanded", "false");
+}
+
+function toggleNavDrawer() {
+  if (viewNav.classList.contains("open")) closeNavDrawer();
+  else openNavDrawer();
+}
+
 function switchView(view) {
   if (!viewSections[view]) return;
   currentView = view;
@@ -885,12 +911,11 @@ function buildMetaRow(task) {
 }
 
 // ---- Pomodoro ----
-// Minuteur de concentration global, indépendant des quêtes : un seul bouton
-// (à droite de la barre d'ajout rapide) ouvre directement le décompte dans
-// une fenêtre détachée (pop-out), synchronisée via localStorage. Une pause
-// fige le décompte (le bouton devient "Reprendre") ; "Revenir à la liste"
-// abandonne la session. À la fin du décompte, une notification navigateur
-// est envoyée.
+// Minuteur de concentration global, indépendant des quêtes. Sur mobile, l'écran
+// s'affiche en panneau bas avec le reste de l'appli flouté ; sur desktop, il
+// s'ouvre dans une fenêtre détachée (PiP ou pop-out), synchronisée via
+// localStorage. Une pause fige le décompte ; "Revenir à la liste" abandonne la
+// session. À la fin, une notification navigateur est envoyée.
 
 function formatPomodoroTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -987,14 +1012,14 @@ function reopenPomodoro() {
   }
 }
 
-// Bouton unique (à droite de la barre d'ajout rapide) : démarre une session,
-// ou rouvre celle déjà en cours/pause, toujours dans l'écran détaché — jamais
-// dans la page principale (startPomodoro/reopenPomodoro affichent l'écran
-// pour initialiser son état, mais on le masque aussitôt ici ; aucun repaint
-// n'a lieu entre les deux, donc rien n'est jamais visible dans cette page).
+// Bouton unique (barre d'ajout, vue Projets, ou menu mobile) : démarre une
+// session ou rouvre celle en cours. Sur mobile, l'écran reste dans la page
+// (panneau bas + fond flouté) ; sur desktop, il s'ouvre dans une fenêtre
+// détachée (PiP ou pop-out classique).
 function launchPomodoro() {
   if (pomodoroSession) reopenPomodoro();
   else startPomodoro();
+  if (isMobileLayout()) return;
   pomodoroBackdrop.hidden = true;
   openPomodoroPopout();
 }
@@ -2031,7 +2056,11 @@ viewNav.addEventListener("click", (e) => {
   const btn = e.target.closest(".view-link");
   if (!btn) return;
   switchView(btn.dataset.view);
+  closeNavDrawer(); // no-op sur desktop (le tiroir n'y est jamais ouvert)
 });
+
+navToggleBtn.addEventListener("click", toggleNavDrawer);
+navBackdrop.addEventListener("click", closeNavDrawer);
 
 projectForm.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -2104,6 +2133,10 @@ confirmBackdrop.addEventListener("click", (e) => {
 
 pomodoroLaunchBtn.addEventListener("click", launchPomodoro);
 pomodoroLaunchBtnProject.addEventListener("click", launchPomodoro);
+pomodoroLaunchBtnNav.addEventListener("click", () => {
+  launchPomodoro();
+  closeNavDrawer();
+});
 pomodoroPauseBtn.addEventListener("click", togglePomodoroPause);
 pomodoroCloseBtn.addEventListener("click", cancelPomodoroSession);
 pomodoroPopoutBtn.addEventListener("click", openPomodoroPopout);
@@ -2143,6 +2176,8 @@ document.addEventListener("keydown", (e) => {
     closeTaskModalKeepingEdits();
   } else if (!projectModalBackdrop.hidden) {
     closeProjectModalKeepingEdits();
+  } else if (!navBackdrop.hidden) {
+    closeNavDrawer();
   }
 });
 
