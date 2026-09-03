@@ -437,6 +437,11 @@ body {
   box-shadow: 0 8px 24px rgba(42, 32, 21, 0.15);
 }
 
+[data-theme="light"] .modal-backdrop.pomodoro-backdrop {
+  background: var(--bg-page);
+  backdrop-filter: none;
+}
+
 /* En clair : fond parchemin en dégradé doux, sans bordure bronze marquée. */
 [data-theme="light"] .panel {
   background: radial-gradient(circle at 50% 30%, var(--bg-card) 0%, var(--bg-raised) 100%);
@@ -1890,6 +1895,11 @@ main {
 
 /* ---------- Écran Pomodoro ---------- */
 
+.modal-backdrop.pomodoro-backdrop {
+  background: var(--bg-page);
+  backdrop-filter: none;
+}
+
 .pomodoro-panel {
   max-width: 420px;
   align-items: center;
@@ -1956,13 +1966,6 @@ main {
   .pomodoro-backdrop {
     padding: 0;
     align-items: flex-end;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  [data-theme="light"] .pomodoro-backdrop {
-    background: rgba(49, 42, 31, 0.3);
   }
 
   .pomodoro-backdrop .pomodoro-panel {
@@ -1982,27 +1985,13 @@ main {
 }
 
 /* Fenêtre détachée (pop-out) : rien d'autre à l'écran que le Pomodoro, sans
-   cadre de modale — un simple écran plein, fond uni et contenu centré. Les
-   jetons de rôle (texte/accent) sont figés sur leurs valeurs sombres : le
-   fond devient fixe (indépendant du thème clair/sombre de l'appli), donc le
-   texte doit rester lisible sur ce fond quel que soit le thème actif. */
+   cadre de modale — fond identique à la page principale (--bg-page). */
 .pomodoro-popout-mode .topbar,
 .pomodoro-popout-mode main {
   display: none;
 }
 
 .pomodoro-popout-mode .pomodoro-backdrop {
-  --text-heading: var(--parchment-100);
-  --text-body: var(--parchment-200);
-  --text-faint: var(--sand-600);
-  --text-muted: var(--sand-400);
-  --accent-text: var(--bronze-500);
-  --danger-text: var(--danger);
-  --danger-dim: rgba(225, 74, 74, 0.16);
-  --line-strong: rgba(238, 219, 175, 0.3);
-  --tint-soft: rgba(238, 219, 175, 0.08);
-  background: var(--bg-deepest);
-  backdrop-filter: none;
   padding: 0;
 }
 
