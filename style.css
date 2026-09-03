@@ -7,6 +7,9 @@
   /* Fonds */
   --bg-deepest: #0e1015;
   --bg-base: #131217;
+  --bg-page:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(211, 183, 136, 0.08), transparent 60%),
+    var(--bg-base);
   --bg-raised: #16151a;
   --bg-card: #1c1b21;
   --bg-card-hover: #221f27;
@@ -113,9 +116,7 @@ html, body {
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(211, 183, 136, 0.08), transparent 60%),
-    var(--bg-base);
+  background: var(--bg-page);
   color: var(--ink-text); /* couleur par défaut : le fond de page reste sombre dans les deux thèmes */
   font-family: var(--font-body);
   line-height: 1.5;
@@ -246,7 +247,7 @@ body {
   width: 220px;
   max-width: 78vw;
   padding: 76px 12px 20px;
-  background: var(--bg-deepest);
+  background: var(--bg-page);
   border: none;
   border-left: 1px solid var(--ink-border);
   border-radius: 0;
@@ -295,10 +296,21 @@ body {
 
 /* Paramètres/thème, imbriqués dans le tiroir : épinglés en bas sur mobile,
    séparés par une ligne (voir aussi le reset desktop plus bas). */
-.view-nav .topbar-actions {
+.view-nav-footer {
   margin-top: auto;
   padding-top: 14px;
   border-top: 1px solid var(--ink-border-soft);
+}
+
+.view-nav .nav-pomodoro-btn {
+  display: block;
+  width: 100%;
+}
+
+.view-nav .topbar-actions {
+  margin-top: 0;
+  padding-top: 10px;
+  border-top: none;
 }
 
 @media (min-width: 640px) {
@@ -316,6 +328,7 @@ body {
     width: auto;
     max-width: none;
     padding: 4px;
+    background: var(--bg-deepest);
     border-left: none;
     border: 1px solid var(--ink-border-soft);
     border-radius: var(--radius-btn);
@@ -331,9 +344,22 @@ body {
 
   /* Repoussé à l'extrémité de la même rangée que les pastilles de vues,
      comme avant que paramètres/thème ne rejoignent le tiroir sur mobile. */
-  .view-nav .topbar-actions {
+  .view-nav-footer {
+    display: flex;
+    align-items: center;
     margin-top: 0;
     margin-left: auto;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .view-nav .nav-pomodoro-btn {
+    display: none;
+  }
+
+  .view-nav .topbar-actions {
+    margin-top: 0;
+    margin-left: 0;
     padding-top: 0;
     border-top: none;
   }
@@ -443,6 +469,13 @@ body {
   align-items: center;
   justify-content: center;
   padding: 18px 22px;
+}
+
+@media (max-width: 639px) {
+  .top-actions-row .pomodoro-launch-panel,
+  #view-project .pomodoro-launch-panel {
+    display: none;
+  }
 }
 
 /* ---------- Form ---------- */
@@ -2027,6 +2060,31 @@ main {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .pomodoro-backdrop {
+    padding: 0;
+    align-items: flex-end;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .pomodoro-backdrop .pomodoro-panel {
+    max-width: 100%;
+    max-height: 85vh;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .pomodoro-backdrop #pomodoro-popout-btn {
+    display: none;
+  }
+
+  .pomodoro-time {
+    font-size: 52px;
+  }
 }
 
 /* Fenêtre détachée (pop-out) : rien d'autre à l'écran que le Pomodoro, sans

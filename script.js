@@ -175,6 +175,7 @@ let toastTimer = null;
 const POMODORO_DURATION_SECONDS = 25 * 60;
 const pomodoroLaunchBtn = document.getElementById("pomodoro-launch-btn");
 const pomodoroLaunchBtnProject = document.getElementById("pomodoro-launch-btn-project");
+const pomodoroLaunchBtnNav = document.getElementById("pomodoro-launch-btn-nav");
 const pomodoroBackdrop = document.getElementById("pomodoro-backdrop");
 const pomodoroProgressFill = document.getElementById("pomodoro-progress-fill");
 const pomodoroTimeEl = document.getElementById("pomodoro-time");
@@ -594,6 +595,10 @@ function setFilter(filter) {
 
 // ---- Menu des vues (tiroir latéral sous 640px) ----
 
+function isMobileLayout() {
+  return window.matchMedia("(max-width: 639px)").matches;
+}
+
 function openNavDrawer() {
   viewNav.classList.add("open");
   navBackdrop.hidden = false;
@@ -906,12 +911,11 @@ function buildMetaRow(task) {
 }
 
 // ---- Pomodoro ----
-// Minuteur de concentration global, indépendant des quêtes : un seul bouton
-// (à droite de la barre d'ajout rapide) ouvre directement le décompte dans
-// une fenêtre détachée (pop-out), synchronisée via localStorage. Une pause
-// fige le décompte (le bouton devient "Reprendre") ; "Revenir à la liste"
-// abandonne la session. À la fin du décompte, une notification navigateur
-// est envoyée.
+// Minuteur de concentration global, indépendant des quêtes. Sur mobile, l'écran
+// s'affiche en panneau bas avec le reste de l'appli flouté ; sur desktop, il
+// s'ouvre dans une fenêtre détachée (PiP ou pop-out), synchronisée via
+// localStorage. Une pause fige le décompte ; "Revenir à la liste" abandonne la
+// session. À la fin, une notification navigateur est envoyée.
 
 function formatPomodoroTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -1008,14 +1012,14 @@ function reopenPomodoro() {
   }
 }
 
-// Bouton unique (à droite de la barre d'ajout rapide) : démarre une session,
-// ou rouvre celle déjà en cours/pause, toujours dans l'écran détaché — jamais
-// dans la page principale (startPomodoro/reopenPomodoro affichent l'écran
-// pour initialiser son état, mais on le masque aussitôt ici ; aucun repaint
-// n'a lieu entre les deux, donc rien n'est jamais visible dans cette page).
+// Bouton unique (barre d'ajout, vue Projets, ou menu mobile) : démarre une
+// session ou rouvre celle en cours. Sur mobile, l'écran reste dans la page
+// (panneau bas + fond flouté) ; sur desktop, il s'ouvre dans une fenêtre
+// détachée (PiP ou pop-out classique).
 function launchPomodoro() {
   if (pomodoroSession) reopenPomodoro();
   else startPomodoro();
+  if (isMobileLayout()) return;
   pomodoroBackdrop.hidden = true;
   openPomodoroPopout();
 }
@@ -2129,6 +2133,10 @@ confirmBackdrop.addEventListener("click", (e) => {
 
 pomodoroLaunchBtn.addEventListener("click", launchPomodoro);
 pomodoroLaunchBtnProject.addEventListener("click", launchPomodoro);
+pomodoroLaunchBtnNav.addEventListener("click", () => {
+  launchPomodoro();
+  closeNavDrawer();
+});
 pomodoroPauseBtn.addEventListener("click", togglePomodoroPause);
 pomodoroCloseBtn.addEventListener("click", cancelPomodoroSession);
 pomodoroPopoutBtn.addEventListener("click", openPomodoroPopout);
