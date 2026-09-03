@@ -54,6 +54,8 @@ const form = document.getElementById("task-form");
 const input = document.getElementById("task-input");
 const themeToggleBtn = document.getElementById("theme-toggle");
 
+const navToggleBtn = document.getElementById("nav-toggle");
+const navBackdrop = document.getElementById("nav-backdrop");
 const viewNav = document.getElementById("view-nav");
 const viewSections = {
   list: document.getElementById("view-list"),
@@ -588,6 +590,25 @@ function setFilter(filter) {
     btn.classList.toggle("active", btn.dataset.filter === filter);
   });
   render();
+}
+
+// ---- Menu des vues (tiroir latéral sous 640px) ----
+
+function openNavDrawer() {
+  viewNav.classList.add("open");
+  navBackdrop.hidden = false;
+  navToggleBtn.setAttribute("aria-expanded", "true");
+}
+
+function closeNavDrawer() {
+  viewNav.classList.remove("open");
+  navBackdrop.hidden = true;
+  navToggleBtn.setAttribute("aria-expanded", "false");
+}
+
+function toggleNavDrawer() {
+  if (viewNav.classList.contains("open")) closeNavDrawer();
+  else openNavDrawer();
 }
 
 function switchView(view) {
@@ -2031,7 +2052,11 @@ viewNav.addEventListener("click", (e) => {
   const btn = e.target.closest(".view-link");
   if (!btn) return;
   switchView(btn.dataset.view);
+  closeNavDrawer(); // no-op sur desktop (le tiroir n'y est jamais ouvert)
 });
+
+navToggleBtn.addEventListener("click", toggleNavDrawer);
+navBackdrop.addEventListener("click", closeNavDrawer);
 
 projectForm.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -2143,6 +2168,8 @@ document.addEventListener("keydown", (e) => {
     closeTaskModalKeepingEdits();
   } else if (!projectModalBackdrop.hidden) {
     closeProjectModalKeepingEdits();
+  } else if (!navBackdrop.hidden) {
+    closeNavDrawer();
   }
 });
 
