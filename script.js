@@ -1,7 +1,7 @@
 // ==========================================================================
 // Grimoire de Tâches — logique de l'application
 // Stockage local (localStorage), pas de dépendances externes.
-// Vues : Liste, Kanban (À commencer / En cours / Terminé), Calendrier.
+// Vues : Liste, Calendrier, Projets, Matrice.
 // ==========================================================================
 
 const STORAGE_KEY = "grimoire-taches.v2";
@@ -16,12 +16,11 @@ const POMODORO_STORAGE_KEY = "grimoire-taches.pomodoro";
 // n'affiche que l'écran Pomodoro (voir le bloc Init en bas de fichier).
 const isPomodoroPopout = new URLSearchParams(location.search).get("pomodoro") === "popout";
 
-const VIEWS = ["list", "kanban", "calendar", "project", "matrix"];
+const VIEWS = ["list", "calendar", "project", "matrix"];
 const MATRIX_QUADRANTS = ["do", "schedule", "delegate", "eliminate"];
 const MATRIX_URGENT_WITHIN_DAYS = 3;
 
 const STATUSES = ["todo", "doing", "done"];
-const STATUS_LABEL = { todo: "À commencer", doing: "En cours", done: "Terminé" };
 const PRIORITY_LABEL = { low: "Fond", medium: "Todo", high: "Urgent" };
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 const DIFFICULTY_LABEL = { easy: "Facile", medium: "Modérée", hard: "Difficile" };
@@ -39,10 +38,7 @@ let projects = loadProjects();
 let currentFilter = "active"; // vue Liste : "active" | "done"
 let currentGroupBy = "none"; // vue Liste : "none" | "category" | "due" | "created" | "tag"
 let currentSearchQuery = ""; // vue Liste : filtre texte (titre, description, projet), déjà en minuscules
-let currentView = loadView(); // "list" | "kanban" | "calendar" | "project"
-
-const KANBAN_PAGE_SIZE = 5;
-let kanbanExpanded = { todo: false, doing: false, done: false };
+let currentView = loadView(); // "list" | "calendar" | "project" | "matrix"
 
 const today = new Date();
 let calendarCursor = { year: today.getFullYear(), month: today.getMonth() };
@@ -59,7 +55,6 @@ const navBackdrop = document.getElementById("nav-backdrop");
 const viewNav = document.getElementById("view-nav");
 const viewSections = {
   list: document.getElementById("view-list"),
-  kanban: document.getElementById("view-kanban"),
   calendar: document.getElementById("view-calendar"),
   project: document.getElementById("view-project"),
   matrix: document.getElementById("view-matrix"),
@@ -71,18 +66,6 @@ const emptyState = document.getElementById("empty-state");
 const filtersEl = document.getElementById("filters");
 const groupSelectEl = document.getElementById("group-select");
 const searchInputEl = document.getElementById("search-input");
-
-// Vue Kanban
-const kanbanLists = {
-  todo: document.getElementById("kanban-todo"),
-  doing: document.getElementById("kanban-doing"),
-  done: document.getElementById("kanban-done"),
-};
-const kanbanCounts = {
-  todo: document.getElementById("count-todo"),
-  doing: document.getElementById("count-doing"),
-  done: document.getElementById("count-done"),
-};
 
 // Vue Calendrier
 const calGrid = document.getElementById("calendar-grid");
@@ -169,7 +152,7 @@ const toastEl = document.getElementById("toast");
 let toastTimer = null;
 
 // Écran Pomodoro — minuteur de concentration global (indépendant des
-// quêtes), lancé depuis le bouton à droite de la barre d'ajout rapide (deux
+// tâches), lancé depuis le bouton à droite de la barre d'ajout rapide (deux
 // exemplaires du même bouton : un global, un dans la vue Projets, qui a son
 // propre champ de création et masque le premier).
 const POMODORO_DURATION_SECONDS = 25 * 60;
@@ -293,7 +276,7 @@ function saveTasks() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   } catch (err) {
     console.warn("Impossible d'enregistrer les tâches :", err);
-    showToast("Échec de l'enregistrement des quêtes. Vos derniers changements risquent d'être perdus.");
+    showToast("Échec de l'enregistrement des tâches. Vos derniers changements risquent d'être perdus.");
   }
 }
 
@@ -429,7 +412,7 @@ function importTasksFromFile(file) {
       return;
     }
 
-    // Ancien format : une simple liste de quêtes, sans projets.
+    // Ancien format : une simple liste de tâches, sans projets.
     // Nouveau format : { tasks: [...], projects: [...] }.
     let importedTasks;
     let importedProjects = null;
@@ -439,19 +422,19 @@ function importTasksFromFile(file) {
       importedTasks = parsed.tasks;
       importedProjects = Array.isArray(parsed.projects) ? parsed.projects : [];
     } else {
-      showImportError("Ce fichier ne contient pas de quêtes reconnues.");
+      showImportError("Ce fichier ne contient pas de tâches reconnues.");
       return;
     }
 
     const taskCount = importedTasks.length;
-    const parts = [`${taskCount} quête${taskCount > 1 ? "s" : ""}`];
+    const parts = [`${taskCount} tâche${taskCount > 1 ? "s" : ""}`];
     if (importedProjects) {
       parts.push(`${importedProjects.length} projet${importedProjects.length > 1 ? "s" : ""}`);
     }
 
     openConfirm({
       text:
-        `Importer ${parts.join(" et ")} ? Cela remplacera définitivement toutes les quêtes actuelles` +
+        `Importer ${parts.join(" et ")} ? Cela remplacera définitivement toutes les tâches actuelles` +
         `${importedProjects ? " et tous les projets actuels" : ""}.`,
       confirmLabel: "Remplacer",
       onConfirm: () => {
@@ -505,7 +488,7 @@ function formatDaysRemaining(diffDays) {
 // ---- Actions (données) ----
 
 // Le titre peut être vide (ajout rapide sans texte, voir closeTaskModal) :
-// la quête s'ouvre alors directement dans sa modale, prête à être nommée.
+// la tâche s'ouvre alors directement dans sa modale, prête à être nommée.
 function addTask(text, projectId = null) {
   const trimmed = text.trim();
   const task = {
@@ -531,14 +514,6 @@ function toggleTaskDone(id) {
   const task = tasks.find((t) => t.id === id);
   if (!task) return;
   task.status = task.status === "done" ? "todo" : "done";
-  saveTasks();
-  render();
-}
-
-function setTaskStatus(id, status) {
-  const task = tasks.find((t) => t.id === id);
-  if (!task || !STATUSES.includes(status)) return;
-  task.status = status;
   saveTasks();
   render();
 }
@@ -571,8 +546,8 @@ function addProject(name) {
 
 function deleteProject(id) {
   projects = projects.filter((p) => p.id !== id);
-  // Les quêtes du projet supprimé ne sont pas perdues : elles redeviennent
-  // simplement des quêtes sans projet.
+  // Les tâches du projet supprimé ne sont pas perdues : elles redeviennent
+  // simplement des tâches sans projet.
   for (const task of tasks) {
     if (task.projectId === id) task.projectId = null;
   }
@@ -626,7 +601,7 @@ function switchView(view) {
   Object.entries(viewSections).forEach(([name, section]) => {
     section.hidden = name !== view;
   });
-  // La vue Projets a déjà son propre champ de création de quête par projet,
+  // La vue Projets a déjà son propre champ de création de tâche par projet,
   // et son propre bouton Pomodoro.
   topActionsRow.hidden = view === "project";
   render();
@@ -636,7 +611,6 @@ function switchView(view) {
 
 function render() {
   if (currentView === "list") renderListView();
-  else if (currentView === "kanban") renderKanbanView();
   else if (currentView === "calendar") renderCalendarView();
   else if (currentView === "project") renderProjectView();
   else if (currentView === "matrix") renderMatrixView();
@@ -766,8 +740,8 @@ function renderListView() {
   emptyState.classList.toggle("visible", isEmpty);
   emptyState.querySelector("p").textContent =
     tasks.length === 0
-      ? "Aucune quête ici. Le repos vous attend, ou ajoutez-en une nouvelle."
-      : "Aucune quête ne correspond à ce filtre.";
+      ? "Aucune tâche ici. Le repos vous attend, ou ajoutez-en une nouvelle."
+      : "Aucune tâche ne correspond à ce filtre.";
 }
 
 function renderGroupSeparator(label) {
@@ -781,7 +755,7 @@ function renderTaskItem(task, { draggable = false } = {}) {
   const li = document.createElement("li");
   li.className = "task-item" + (task.status === "done" ? " done" : "");
   li.dataset.id = task.id;
-  li.title = "Cliquez pour ouvrir la quête";
+  li.title = "Cliquez pour ouvrir la tâche";
   li.addEventListener("click", (e) => {
     if (e.target.closest(".task-check")) return;
     openTaskModal(task);
@@ -841,23 +815,6 @@ function renderTaskTitle(textEl, task) {
   }
 }
 
-// Vue Kanban uniquement : l'échéance est affichée sur sa propre ligne,
-// avec le nombre de jours restants entre parenthèses.
-function buildKanbanDueLine(task) {
-  if (!task.dueDate) return null;
-
-  const diffDays = daysUntilDue(task.dueDate);
-  const isToday = diffDays === 0;
-  const isOverdue = task.status !== "done" && diffDays < 0;
-
-  const line = document.createElement("div");
-  line.className = "kanban-due-line" + (isToday ? " today" : "") + (isOverdue ? " overdue" : "");
-  line.textContent = isToday
-    ? "Aujourd'hui"
-    : `${formatDueDate(task.dueDate)} (${formatDaysRemaining(diffDays)})`;
-  return line;
-}
-
 function buildMetaRow(task) {
   const meta = document.createElement("div");
   meta.className = "task-meta";
@@ -911,7 +868,7 @@ function buildMetaRow(task) {
 }
 
 // ---- Pomodoro ----
-// Minuteur de concentration global, indépendant des quêtes. Sur mobile, l'écran
+// Minuteur de concentration global, indépendant des tâches. Sur mobile, l'écran
 // s'affiche en panneau bas avec le reste de l'appli flouté ; sur desktop, il
 // s'ouvre dans une fenêtre détachée (PiP ou pop-out), synchronisée via
 // localStorage. Une pause fige le décompte ; "Revenir à la liste" abandonne la
@@ -1129,7 +1086,7 @@ function openPomodoroOverlay() {
 
 function closePomodoroOverlay() {
   pomodoroBackdrop.hidden = true;
-  if (isPomodoroPopout) document.title = "Livre de quêtes";
+  if (isPomodoroPopout) document.title = "Livre de tâches";
   if (pomodoroPipWindow) pomodoroPipWindow.close(); // déclenche pagehide -> replace l'écran
 }
 
@@ -1273,9 +1230,9 @@ function openTaskModal(task) {
   modalTitleInput.select();
 }
 
-// Une quête créée sans titre (ajout rapide vide, puis fermée sans être
+// Une tâche créée sans titre (ajout rapide vide, puis fermée sans être
 // nommée) n'a jamais été validée : on l'enlève plutôt que de laisser une
-// quête fantôme dans la liste.
+// tâche fantôme dans la liste.
 function closeTaskModal() {
   const task = getEditingTask();
   if (task && !task.text.trim()) {
@@ -1341,7 +1298,7 @@ function deleteTaskModal() {
 
 // ---- Confirmation (générique) ----
 // Réutilisée pour la suppression de tâche (accessible uniquement depuis la
-// modale) et pour le remplacement des quêtes lors d'un import JSON.
+// modale) et pour le remplacement des tâches lors d'un import JSON.
 
 function openConfirm({ text, confirmLabel = "Confirmer", onConfirm }) {
   confirmText.textContent = text;
@@ -1497,7 +1454,7 @@ function addDraftTag(rawText) {
   const trimmed = rawText.trim();
   if (!trimmed) return;
   if (modalTagsDraft.length >= MAX_TAGS_PER_TASK) {
-    showToast(`Maximum ${MAX_TAGS_PER_TASK} tags par quête.`);
+    showToast(`Maximum ${MAX_TAGS_PER_TASK} tags par tâche.`);
     return;
   }
   modalTagsDraft = sanitizeTags([...modalTagsDraft, trimmed]);
@@ -1517,96 +1474,6 @@ function populateModalTagDatalist() {
     option.value = tag;
     modalTagDatalist.appendChild(option);
   }
-}
-
-// ---- Vue Kanban ----
-
-function renderKanbanView() {
-  for (const status of STATUSES) {
-    const column = kanbanLists[status];
-    column.innerHTML = "";
-
-    const columnTasks = tasks
-      .filter((t) => t.status === status)
-      .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || b.createdAt - a.createdAt);
-
-    kanbanCounts[status].textContent = String(columnTasks.length);
-
-    if (columnTasks.length === 0) {
-      const empty = document.createElement("p");
-      empty.className = "kanban-empty";
-      empty.textContent = "Aucune quête";
-      column.appendChild(empty);
-      continue;
-    }
-
-    const expanded = kanbanExpanded[status];
-    const visibleTasks = expanded ? columnTasks : columnTasks.slice(0, KANBAN_PAGE_SIZE);
-
-    for (const task of visibleTasks) {
-      column.appendChild(renderKanbanCard(task));
-    }
-
-    if (columnTasks.length > KANBAN_PAGE_SIZE) {
-      const toggleBtn = document.createElement("button");
-      toggleBtn.type = "button";
-      toggleBtn.className = "kanban-toggle-btn";
-      toggleBtn.textContent = expanded ? "Afficher moins" : `Afficher tout (${columnTasks.length})`;
-      toggleBtn.addEventListener("click", () => {
-        kanbanExpanded[status] = !kanbanExpanded[status];
-        renderKanbanView();
-      });
-      column.appendChild(toggleBtn);
-    }
-  }
-}
-
-function renderKanbanCard(task) {
-  const card = document.createElement("div");
-  card.className = "kanban-card";
-  card.dataset.id = task.id;
-  card.draggable = true;
-  card.title = "Cliquez pour ouvrir la quête";
-
-  card.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("text/plain", task.id);
-    e.dataTransfer.effectAllowed = "move";
-    card.classList.add("dragging");
-  });
-  card.addEventListener("dragend", () => card.classList.remove("dragging"));
-  card.addEventListener("click", () => openTaskModal(task));
-
-  const textEl = document.createElement("div");
-  textEl.className = "task-text";
-  textEl.textContent = task.text;
-
-  const dueLine = buildKanbanDueLine(task);
-
-  const meta = buildMetaRow(task);
-  meta.classList.add("kanban-card-meta");
-
-  card.appendChild(textEl);
-  if (dueLine) card.appendChild(dueLine);
-  card.appendChild(meta);
-
-  return card;
-}
-
-function setupKanbanDragTargets() {
-  document.querySelectorAll(".kanban-column").forEach((column) => {
-    column.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      column.classList.add("drag-over");
-    });
-    column.addEventListener("dragleave", () => column.classList.remove("drag-over"));
-    column.addEventListener("drop", (e) => {
-      e.preventDefault();
-      column.classList.remove("drag-over");
-      const id = e.dataTransfer.getData("text/plain");
-      setTaskStatus(id, column.dataset.status);
-    });
-  });
 }
 
 // ---- Vue Calendrier ----
@@ -1738,7 +1605,7 @@ function renderProjectPanel(project) {
 
   const count = document.createElement("span");
   count.className = "project-count";
-  count.textContent = `${projectTasks.length} quête${projectTasks.length > 1 ? "s" : ""}`;
+  count.textContent = `${projectTasks.length} tâche${projectTasks.length > 1 ? "s" : ""}`;
 
   const deleteBtn = document.createElement("button");
   deleteBtn.type = "button";
@@ -1747,7 +1614,7 @@ function renderProjectPanel(project) {
   deleteBtn.setAttribute("aria-label", "Supprimer le projet");
   deleteBtn.addEventListener("click", () => {
     openConfirm({
-      text: `Supprimer le projet « ${project.name} » ? Les quêtes qu'il contient seront conservées, mais n'appartiendront plus à aucun projet.`,
+      text: `Supprimer le projet « ${project.name} » ? Les tâches qu'il contient seront conservées, mais n'appartiendront plus à aucun projet.`,
       confirmLabel: "Supprimer le projet",
       onConfirm: () => deleteProject(project.id),
     });
@@ -1763,7 +1630,7 @@ function renderProjectPanel(project) {
 
   const questInput = document.createElement("input");
   questInput.type = "text";
-  questInput.placeholder = "Ajouter une quête à ce projet…";
+  questInput.placeholder = "Ajouter une tâche à ce projet…";
   questInput.maxLength = 140;
 
   const submitBtn = document.createElement("button");
@@ -1787,7 +1654,7 @@ function renderProjectPanel(project) {
   if (orderedTasks.length === 0) {
     const hint = document.createElement("p");
     hint.className = "project-empty-hint";
-    hint.textContent = "Aucune quête dans ce projet.";
+    hint.textContent = "Aucune tâche dans ce projet.";
     section.appendChild(hint);
     return section;
   }
@@ -1830,7 +1697,7 @@ function renderProjectPanel(project) {
   return section;
 }
 
-// Ordonne les quêtes d'un projet selon son mode de tri.
+// Ordonne les tâches d'un projet selon son mode de tri.
 function getOrderedProjectTasks(project, projectTasks) {
   if (project.sortMode === "due") return sortTasks(projectTasks, "due");
   if (project.sortMode === "priority") return sortTasks(projectTasks, "priority");
@@ -1838,7 +1705,7 @@ function getOrderedProjectTasks(project, projectTasks) {
 }
 
 // Applique l'ordre manuel persistant (`project.taskOrder`) et se répare tout
-// seul : les quêtes retirées du projet disparaissent de l'ordre, celles qui
+// seul : les tâches retirées du projet disparaissent de l'ordre, celles qui
 // n'y figurent pas encore (nouvelles) sont ajoutées à la suite.
 function getManualOrderedTasks(project, projectTasks) {
   const byId = new Map(projectTasks.map((t) => [t.id, t]));
@@ -1862,8 +1729,7 @@ function getManualOrderedTasks(project, projectTasks) {
   return merged;
 }
 
-// Réordonnancement manuel par glisser-déposer, à l'intérieur d'une même liste
-// (contrairement au Kanban qui déplace entre colonnes).
+// Réordonnancement manuel par glisser-déposer, à l'intérieur d'une même liste.
 function getDragAfterElement(container, y) {
   const items = [...container.querySelectorAll(".task-item:not(.dragging)")];
   return items.reduce(
@@ -1973,7 +1839,7 @@ function deleteProjectModal() {
 }
 
 // ---- Vue Matrice d'Eisenhower ----
-// Classe les quêtes actives selon deux axes déduits des champs existants,
+// Classe les tâches actives selon deux axes déduits des champs existants,
 // sans ajouter de nouveau champ : l'urgence (échéance proche ou dépassée)
 // et l'importance (catégorie autre que « Fond »).
 
@@ -2016,7 +1882,7 @@ function renderMatrixView() {
     if (quadrantTasks.length === 0) {
       const empty = document.createElement("p");
       empty.className = "matrix-empty";
-      empty.textContent = "Aucune quête";
+      empty.textContent = "Aucune tâche";
       container.appendChild(empty);
       continue;
     }
@@ -2088,7 +1954,7 @@ importJsonInput.addEventListener("change", () => {
 modalSaveBtn.addEventListener("click", saveTaskModal);
 modalDeleteBtn.addEventListener("click", () => {
   openConfirm({
-    text: "Supprimer définitivement cette quête ? Cette action est irréversible.",
+    text: "Supprimer définitivement cette tâche ? Cette action est irréversible.",
     confirmLabel: "Supprimer définitivement",
     onConfirm: deleteTaskModal,
   });
@@ -2101,7 +1967,7 @@ projectModalDeleteBtn.addEventListener("click", () => {
   const project = getEditingProject();
   if (!project) return;
   openConfirm({
-    text: `Supprimer le projet « ${project.name} » ? Les quêtes qu'il contient seront conservées, mais n'appartiendront plus à aucun projet.`,
+    text: `Supprimer le projet « ${project.name} » ? Les tâches qu'il contient seront conservées, mais n'appartiendront plus à aucun projet.`,
     confirmLabel: "Supprimer le projet",
     onConfirm: deleteProjectModal,
   });
@@ -2235,7 +2101,6 @@ if (isPomodoroPopout) {
   applyTheme(getTheme());
   reflectPomodoroSessionInThisWindow();
 } else {
-  setupKanbanDragTargets();
   applyTheme(getTheme()); // synchronise l'icône avec le thème déjà appliqué (script d'amorçage dans <head>)
   switchView(currentView); // synchronise l'UI et déclenche le premier rendu
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Livre de quêtes</title>
+<title>Livre de tâches</title>
 <script>
   // Applique le thème enregistré avant le premier rendu (évite le flash).
   try {
@@ -26,12 +26,11 @@
   <div class="topbar-inner">
     <div class="brand">
       <span class="brand-emblem">✦</span>
-      <span class="brand-name">Livre&nbsp;de&nbsp;Quêtes</span>
+      <span class="brand-name">Livre&nbsp;de&nbsp;Tâches</span>
     </div>
 
     <nav class="view-nav" id="view-nav" aria-label="Menu">
       <button type="button" class="view-link active" data-view="list">Liste</button>
-      <button type="button" class="view-link" data-view="kanban">Kanban</button>
       <button type="button" class="view-link" data-view="calendar">Calendrier</button>
       <button type="button" class="view-link" data-view="matrix">Matrice</button>
       <button type="button" class="view-link" data-view="project">Projets</button>
@@ -88,7 +87,7 @@
         <input
           type="text"
           id="task-input"
-          placeholder="Décrire une nouvelle quête…"
+          placeholder="Décrire une nouvelle tâche…"
           maxlength="140"
         >
         <button type="submit" class="btn-primary">
@@ -132,7 +131,7 @@
               id="search-input"
               class="search-input"
               placeholder="Filtrer par…"
-              aria-label="Filtrer les quêtes par titre, description, projet ou tag"
+              aria-label="Filtrer les tâches par titre, description, projet ou tag"
               autocomplete="off"
             >
           </div>
@@ -142,33 +141,7 @@
       <ul id="task-list" class="task-list"></ul>
 
       <div id="empty-state" class="empty-state">
-        <p>Aucune quête ici. Le repos vous attend, ou ajoutez-en une nouvelle.</p>
-      </div>
-    </section>
-  </section>
-
-  <!-- ===== Vue Kanban ===== -->
-  <section class="view" id="view-kanban" hidden>
-    <section class="panel kanban-panel">
-      <div class="kanban-board">
-        <div class="kanban-column" data-status="todo">
-          <h3 class="kanban-title">
-            À commencer <span class="kanban-count" id="count-todo">0</span>
-          </h3>
-          <div class="kanban-list" id="kanban-todo" data-status="todo"></div>
-        </div>
-        <div class="kanban-column" data-status="doing">
-          <h3 class="kanban-title">
-            En cours <span class="kanban-count" id="count-doing">0</span>
-          </h3>
-          <div class="kanban-list" id="kanban-doing" data-status="doing"></div>
-        </div>
-        <div class="kanban-column" data-status="done">
-          <h3 class="kanban-title">
-            Terminé <span class="kanban-count" id="count-done">0</span>
-          </h3>
-          <div class="kanban-list" id="kanban-done" data-status="done"></div>
-        </div>
+        <p>Aucune tâche ici. Le repos vous attend, ou ajoutez-en une nouvelle.</p>
       </div>
     </section>
   </section>
@@ -189,9 +162,9 @@
     </section>
 
     <section class="panel agenda-panel">
-      <h3 class="eyebrow" id="agenda-title">Quêtes du jour</h3>
+      <h3 class="eyebrow" id="agenda-title">Tâches du jour</h3>
       <ul id="agenda-list" class="task-list"></ul>
-      <p class="agenda-empty" id="agenda-empty">Aucune quête à cette date.</p>
+      <p class="agenda-empty" id="agenda-empty">Aucune tâche à cette date.</p>
     </section>
   </section>
 
@@ -220,7 +193,7 @@
     <div id="project-list" class="project-list"></div>
 
     <div id="project-empty-state" class="empty-state">
-      <p>Aucun projet pour l'instant. Créez-en un pour regrouper vos quêtes.</p>
+      <p>Aucun projet pour l'instant. Créez-en un pour regrouper vos tâches.</p>
     </div>
   </section>
 
@@ -276,7 +249,7 @@
         id="modal-title-input"
         class="modal-title-input"
         maxlength="140"
-        placeholder="Titre de la quête"
+        placeholder="Titre de la tâche"
         aria-label="Titre de la tâche"
       >
       <button type="button" id="modal-close" class="modal-close" aria-label="Fermer">✕</button>
@@ -420,7 +393,7 @@
     <div class="modal-body">
       <div class="modal-field">
         <label>Sauvegarde</label>
-        <p class="modal-field-hint">Exportez vos quêtes et vos projets dans un fichier, ou restaurez-les depuis une sauvegarde.</p>
+        <p class="modal-field-hint">Exportez vos tâches et vos projets dans un fichier, ou restaurez-les depuis une sauvegarde.</p>
         <div class="settings-actions">
           <button type="button" id="export-json-btn" class="btn-ghost">Exporter en JSON</button>
           <button type="button" id="import-json-btn" class="btn-ghost">Importer un JSON</button>

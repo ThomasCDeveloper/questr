@@ -62,8 +62,8 @@
   --amber-text: var(--amber);
   --danger-text: var(--danger);
 
-  /* ---- « Encre » — chrome toujours sombre (fond de page, nav, contrôles
-     posés sur --bg-deepest) : jamais redéfini en thème clair. ---- */
+  /* ---- « Encre » — chrome (barre du haut, nav, filtres posés sur --bg-deepest).
+     En sombre : valeurs ci-dessus. En clair : redéfini dans [data-theme="light"]. ---- */
   --ink-bg-raised: #16151a;
   --ink-text: var(--parchment-100);
   --ink-text-muted: var(--sand-400);
@@ -74,35 +74,50 @@
   color-scheme: dark;
 }
 
-/* ---------- Thème clair — parchemin façon tougli.barbofus.com ----------
-   Le fond de page et la nav restent sombres (tokens --bg-base / --bg-deepest
-   / --ink-* volontairement non redéfinis ici) ; seules les surfaces des
-   sections (panels, cartes, cases) passent en parchemin clair. */
+/* ---------- Thème clair — parchemin chaud cohérent (tougli.barbofus.com) ----------
+   Même palette bronze/parchemin que le sombre, mais fond de page, chrome et
+   cartes tous en tons clairs ; le sombre reste inchangé (valeurs :root). */
 
 [data-theme="light"] {
-  /* Valeurs sourcées directement depuis tougli.barbofus.com/guides :
-     fond de carte = dégradé radial rgb(244,231,202) → rgb(238,219,175),
-     bordure de carte = rgb(173,137,85) (= notre --bronze-500),
-     texte de titre = rgb(49,42,31). */
-  --bg-raised: #eedbaf;     /* rgb(238, 219, 175) — parchemin, bord/creux (plus riche) */
-  --bg-card: #f4e7ca;       /* rgb(244, 231, 202) — parchemin principal (le vrai fond de carte tougli) */
-  --bg-card-hover: #f9f3e4; /* rgb(249, 243, 228) — parchemin le plus clair, pour le survol */
+  color-scheme: light;
 
-  --text-heading: #312a1f; /* rgb(49, 42, 31) — couleur exacte des H2 tougli */
-  --text-body: #3a2f1f;
-  --text-faint: #7c7062;
-  --text-muted: #6f6a62;
+  /* Fond de page & zones en retrait (filtres, nav desktop, boutons ronds) */
+  --bg-deepest: #e5d9bc;
+  --bg-base: #f0e6d2;
+  --bg-page:
+    radial-gradient(ellipse 900px 500px at 50% -10%, rgba(255, 255, 255, 0.45), transparent 60%),
+    var(--bg-base);
+  --ink-bg-raised: #ede2c8;
 
-  /* Versions assombries des couleurs d'accent pour rester lisibles en texte
-     sur le parchemin clair (contraste ≥ 4.5:1 vérifié sur --bg-raised). */
-  --accent-text: #7a5a30;
+  --ink-text: #2a2218;
+  --ink-text-muted: #42392b;
+  --ink-text-faint: #544836;
+  --ink-border: rgba(129, 100, 62, 0.38);
+  --ink-border-soft: rgba(173, 137, 85, 0.26);
+
+  /* Surfaces de contenu (cartes, champs, lignes de tâches) */
+  --bg-raised: #eedbaf;
+  --bg-card: #f4e7ca;
+  --bg-card-hover: #f9f3e4;
+
+  --text-heading: #2a2218;
+  --text-body: #312a1f;
+  --text-muted: #42392b;
+  --text-faint: #544836;
+
+  /* Accents assombris pour rester lisibles sur le parchemin */
+  --accent-text: #5c4528;
   --sage-text: #45603c;
   --amber-text: #7a4d19;
   --danger-text: #a13030;
 
-  --line: rgba(173, 137, 85, 0.25);
-  --line-strong: rgba(173, 137, 85, 0.45);
+  --line: rgba(129, 100, 62, 0.28);
+  --line-strong: rgba(90, 68, 40, 0.52);
   --tint-soft: rgba(173, 137, 85, 0.12);
+
+  --danger-dim: rgba(161, 48, 48, 0.12);
+  --amber-dim: rgba(122, 77, 25, 0.12);
+  --sage-dim: rgba(69, 96, 60, 0.12);
 }
 
 * {
@@ -117,7 +132,7 @@ html, body {
 body {
   min-height: 100vh;
   background: var(--bg-page);
-  color: var(--ink-text); /* couleur par défaut : le fond de page reste sombre dans les deux thèmes */
+  color: var(--ink-text);
   font-family: var(--font-body);
   line-height: 1.5;
   position: relative;
@@ -400,14 +415,33 @@ body {
   padding: 24px;
 }
 
-/* En clair, réplique le vrai fond de carte tougli : dégradé radial
-   parchemin + assombrissement doux vers les bords + bordure bronze 2px. */
+[data-theme="light"] .vignette {
+  background: radial-gradient(ellipse 1400px 900px at 50% 0%, transparent 55%, rgba(129, 100, 62, 0.08) 100%);
+}
+
+[data-theme="light"] .topbar {
+  border-bottom-color: var(--ink-border-soft);
+  box-shadow: 0 1px 0 rgba(173, 137, 85, 0.25), 0 2px 14px rgba(42, 32, 21, 0.06);
+}
+
+[data-theme="light"] .nav-backdrop {
+  background: rgba(49, 42, 31, 0.25);
+}
+
+[data-theme="light"] .modal-backdrop {
+  background: rgba(49, 42, 31, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+[data-theme="light"] .toast {
+  box-shadow: 0 8px 24px rgba(42, 32, 21, 0.15);
+}
+
+/* En clair : fond parchemin en dégradé doux, sans bordure bronze marquée. */
 [data-theme="light"] .panel {
-  background:
-    radial-gradient(140% 140% at 50% 0%, rgba(42, 32, 21, 0.1), transparent 65%),
-    radial-gradient(circle at 50% 30%, var(--bg-card) 0%, var(--bg-raised) 100%);
-  border-width: 2px;
-  border-color: var(--bronze-500);
+  background: radial-gradient(circle at 50% 30%, var(--bg-card) 0%, var(--bg-raised) 100%);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 4px 20px rgba(42, 32, 21, 0.07);
 }
 
 /* ---------- Intro ---------- */
@@ -940,150 +974,6 @@ body {
   margin: 0;
   font-size: 13.5px;
   max-width: 34ch;
-}
-
-/* ---------- Kanban ---------- */
-
-.kanban-panel {
-  padding: 20px;
-}
-
-.kanban-board {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
-  gap: 14px;
-  align-items: start;
-}
-
-.kanban-column {
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px;
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.kanban-column.drag-over {
-  border-color: var(--bronze-500);
-  box-shadow: 0 0 0 3px rgba(173, 137, 85, 0.15);
-}
-
-.kanban-title {
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-display);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent-text);
-}
-
-.kanban-count {
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--tint-soft);
-  border-radius: var(--radius-badge);
-  padding: 1px 8px;
-}
-
-.kanban-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 40px;
-}
-
-.kanban-card {
-  background: var(--bg-card);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 12px;
-  cursor: grab;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: border-color 0.2s, background 0.2s, opacity 0.2s;
-}
-
-.kanban-card:hover {
-  border-color: var(--line-strong);
-  background: var(--bg-card-hover);
-}
-
-.kanban-card.dragging {
-  opacity: 0.4;
-}
-
-.kanban-card .task-text {
-  font-size: 13.5px;
-}
-
-.kanban-column[data-status="done"] .kanban-card .task-text {
-  color: var(--text-faint);
-  text-decoration: line-through;
-  text-decoration-color: var(--text-faint);
-}
-
-.kanban-due-line {
-  font-size: 12px;
-  color: var(--text-faint);
-}
-
-.kanban-due-line.today {
-  color: var(--accent-text);
-  font-weight: 700;
-}
-
-.kanban-due-line.overdue {
-  color: var(--danger-text);
-  font-weight: 600;
-}
-
-.kanban-column[data-status="done"] .kanban-card .kanban-due-line {
-  color: var(--text-faint);
-  font-weight: 400;
-}
-
-.kanban-card-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.kanban-empty {
-  font-size: 12px;
-  color: var(--text-faint);
-  text-align: center;
-  padding: 10px 4px;
-}
-
-.kanban-toggle-btn {
-  border: 1px dashed var(--line-strong);
-  background: transparent;
-  color: var(--text-muted);
-  font-family: var(--font-body);
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 7px;
-  border-radius: var(--radius-btn);
-  cursor: pointer;
-  text-align: center;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
-}
-
-.kanban-toggle-btn:hover {
-  color: var(--text-body);
-  border-color: var(--bronze-500);
-  background: var(--tint-soft);
 }
 
 /* ---------- Calendrier ---------- */
@@ -2071,6 +1961,10 @@ main {
     -webkit-backdrop-filter: blur(10px);
   }
 
+  [data-theme="light"] .pomodoro-backdrop {
+    background: rgba(49, 42, 31, 0.3);
+  }
+
   .pomodoro-backdrop .pomodoro-panel {
     max-width: 100%;
     max-height: 85vh;
@@ -2122,7 +2016,6 @@ main {
 /* ---------- Responsive ---------- */
 
 @media (max-width: 700px) {
-  .kanban-board,
   .matrix-grid {
     grid-template-columns: 1fr;
   }
